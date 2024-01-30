@@ -6,6 +6,7 @@ from torch.nn import functional as F
 from opts import OPT as opt
 import pickle
 from tqdm import tqdm
+from torchattacks import PGD
 from utils import accuracy
 import time
 from copy import deepcopy
@@ -313,6 +314,18 @@ class Mahalanobis(BaseMethod):
     def tuckey_transf(self,vectors,beta=0.5):
         return torch.pow(vectors,beta)
     
+    def generate_samples(self,model,shape):
+        attk=PGD(model,eps=150/255, alpha=2/255, steps=30)
+        attk.set_mode_targeted_by_label()
+        inputs=torch.rand(shape).to(opt.device)
+        targets=torch.randint(0,opt.num_classes,(shape[0],)).to(opt.device)
+        if opt.mode=='CR':
+            targets=torch.where(targets==0,1,targets)
+        adv_exs=attk(inputs,targets)
+        print(targets[:20])
+        print(torch.argmax(model(adv_exs),dim=1)[:20])
+        return adv_exs
+    
     def run(self):
         """compute embeddings"""
         #lambda1 fgt
@@ -410,12 +423,16 @@ class Mahalanobis(BaseMethod):
 
                     dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
+                    from pdb import set_trace as bp
+                    bp()
+                    adv_exs=self.generate_samples(original_model,img_fgt.shape)
 
                     outputs_ret = fc(embs_fgt)
                     with torch.no_grad():
                         outputs_original = original_model(img_fgt)
 
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
+                    loss=loss_ret+loss_fgt
                     
                     
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
