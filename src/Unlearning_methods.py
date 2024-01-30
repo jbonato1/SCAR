@@ -2,11 +2,14 @@ import torch
 import torchvision
 from torch import nn 
 from torch import optim
+from torch.nn import functional as F
+from utils import com
 from opts import OPT as opt
 import pickle
 from tqdm import tqdm
 from utils import accuracy
 import time
+
 
 def choose_method(name):
     if name=='FineTuning':
@@ -181,15 +184,15 @@ class DUCK(BaseMethod):
             labs=torch.cat(labs)
         
 
-        # compute centroids from embeddings
-        centroids=[]
+        # compute distribs from embeddings
+        distribs=[]
         for i in range(opt.num_classes):
             if type(self.class_to_remove) is list:
                 if i not in self.class_to_remove:
-                    centroids.append(ret_embs[labs==i].mean(0))
+                    distribs.append(ret_embs[labs==i].mean(0))
             else:
-                centroids.append(ret_embs[labs==i].mean(0))
-        centroids=torch.stack(centroids)
+                distribs.append(ret_embs[labs==i].mean(0))
+        distribs=torch.stack(distribs)
   
 
         bbone.train(), fc.train()
@@ -199,7 +202,7 @@ class DUCK(BaseMethod):
 
         init = True
         flag_exit = False
-        all_closest_centroids = []
+        all_closest_distribs = []
         if opt.dataset == 'tinyImagenet':
             ls = 0.2
         else:
@@ -217,21 +220,21 @@ class DUCK(BaseMethod):
 
                     logits_fgt = bbone(img_fgt)
 
-                    # compute pairwise cosine distance between embeddings and centroids
-                    dists = self.pairwise_cos_dist(logits_fgt, centroids)
+                    # compute pairwise cosine distance between embeddings and distribs
+                    dists = self.pairwise_cos_dist(logits_fgt, distribs)
 
 
                     if init:
-                        closest_centroids = torch.argsort(dists, dim=1)
-                        tmp = closest_centroids[:, 0]
-                        closest_centroids = torch.where(tmp == lab_fgt, closest_centroids[:, 1], tmp)
-                        all_closest_centroids.append(closest_centroids)
-                        closest_centroids = all_closest_centroids[-1]
+                        closest_distribs = torch.argsort(dists, dim=1)
+                        tmp = closest_distribs[:, 0]
+                        closest_distribs = torch.where(tmp == lab_fgt, closest_distribs[:, 1], tmp)
+                        all_closest_distribs.append(closest_distribs)
+                        closest_distribs = all_closest_distribs[-1]
                     else:
-                        closest_centroids = all_closest_centroids[n_batch]
+                        closest_distribs = all_closest_distribs[n_batch]
 
 
-                    dists = dists[torch.arange(dists.shape[0]), closest_centroids[:dists.shape[0]]]
+                    dists = dists[torch.arange(dists.shape[0]), closest_distribs[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
 
                     logits_ret = bbone(img_ret)
@@ -267,3 +270,171 @@ class DUCK(BaseMethod):
         self.net.eval()
         return self.net
 
+class Mahalanobis(BaseMethod):
+    def __init__(self, net, retain, forget,test,class_to_remove=None):
+        super().__init__(net, retain, forget, test)
+        self.loader = None
+        self.class_to_remove = class_to_remove
+
+    def cov_mat_shrinkage(self,cov_mat,gamma1=1,gamma2=1):
+        I = torch.eye(cov_mat.shape[0]).to(opt.device)
+        V1 = torch.mean(torch.diagonal(cov_mat))
+        off_diag = cov_mat.clone()
+        off_diag.fill_diagonal_(0.0)
+        mask = off_diag != 0.0
+        V2 = (off_diag*mask).sum() / mask.sum()
+        cov_mat_shrinked = cov_mat + gamma1*I*V1 + gamma2*(1-I)*V2
+        return cov_mat_shrinked
+    
+    def normalize_cov(self,cov_mat):
+        sigma = torch.sqrt(torch.diagonal(cov_mat))  # standard deviations of the variables
+        cov_mat = cov_mat/(torch.matmul(sigma.unsqueeze(1),sigma.unsqueeze(0)))
+        return cov_mat
+
+
+    def mahalanobis_dist(self, samples, mean,S_inv):
+        #check optimized version
+        diff = F.normalize(self.tuckey_transf(samples), p=2, dim=-1)[:,None,:] - F.normalize(mean, p=2, dim=-1)
+        right_term = torch.matmul(diff.permute(1,0,2), S_inv)
+        mahalanobis = torch.diagonal(torch.matmul(right_term, diff.permute(1,2,0)),dim1=1,dim2=2)
+        return mahalanobis
+
+    def tuckey_transf(self,vectors,beta=0.5):
+        return torch.pow(vectors,beta)
+    
+    def run(self):
+        """compute embeddings"""
+        #lambda1 fgt
+        #lambda2 retain
+
+
+        bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
+        if opt.model == 'AllCNN':
+            fc = self.net.classifier
+        else:
+            fc = self.net.fc
+        
+        bbone.eval()
+
+ 
+        # embeddings of retain set
+        with torch.no_grad():
+            ret_embs=[]
+            labs=[]
+            cnt=0
+            for img_ret, lab_ret in self.retain:
+                img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
+                logits_ret = bbone(img_ret)
+                ret_embs.append(logits_ret)
+                labs.append(lab_ret)
+                cnt+=1
+            ret_embs=torch.cat(ret_embs)
+            labs=torch.cat(labs)
+        
+
+        # compute distribs from embeddings
+        distribs=[]
+        cov_matrix_inv =[]
+        for i in range(opt.num_classes):
+            if type(self.class_to_remove) is list:
+                if i not in self.class_to_remove:
+                    samples = self.tuckey_transf(ret_embs[labs==i])
+                    distribs.append(samples.mean(0))
+                    cov = torch.cov(samples.T)
+                    cov_shrinked = self.cov_mat_shrinkage(cov)
+                    cov_shrinked = self.normalize_cov(cov_shrinked)
+                    cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
+            else:
+                samples = self.tuckey_transf(ret_embs[labs==i])
+                distribs.append(samples.mean(0))
+                cov = torch.cov(samples.T)
+                cov_shrinked = self.cov_mat_shrinkage(cov)
+                cov_shrinked = self.normalize_cov(cov_shrinked)
+                cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
+
+        distribs=torch.stack(distribs)
+        cov_matrix_inv=torch.stack(cov_matrix_inv)
+        
+        bbone.train(), fc.train()
+
+        optimizer = optim.Adam(self.net.parameters(), lr=opt.lr, weight_decay=opt.wd)
+        scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=opt.scheduler, gamma=0.5)
+
+        init = True
+        flag_exit = False
+        all_closest_class = []
+        if opt.dataset == 'tinyImagenet':
+            ls = 0.2
+        else:
+            ls = 0
+        criterion = nn.CrossEntropyLoss(label_smoothing=ls)
+        
+
+        print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
+        print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
+        for _ in tqdm(range(opt.epochs)):
+            for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
+                #print('new fgt')
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                    img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
+                    
+                    optimizer.zero_grad()
+
+                    embs_fgt = bbone(img_fgt)
+
+                    # compute Mahalanobis distance between embeddings and cluster
+                    dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv)
+
+
+                    if init:
+                        closest_class = torch.argsort(dists, dim=1)
+                        tmp = closest_class[:, 0]
+                        closest_class = torch.where(tmp == lab_fgt, closest_class[:, 1], tmp)
+                        all_closest_class.append(closest_class)
+                        closest_class = all_closest_class[-1]
+                    else:
+                        closest_class = all_closest_class[n_batch]
+
+
+                    dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
+                    loss_fgt = torch.mean(dists) * opt.lambda_1
+
+                    embs_ret = bbone(img_ret)
+                    logits_ret = fc(embs_ret)
+                    
+                    loss_ret = criterion(logits_ret/opt.temperature, lab_ret)*opt.lambda_2
+                    loss = loss_ret+ loss_fgt
+                    
+                    if n_batch_ret>opt.batch_fgt_ret_ratio:
+                        del loss,loss_ret,loss_fgt, embs_fgt, logits_ret, embs_ret,dists
+                        break
+                    print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
+                    loss.backward()
+                    optimizer.step()
+                    with torch.no_grad():
+                        self.net.eval()
+                        curr_acc = accuracy(self.net, self.forget)
+                        test_acc=accuracy(self.net, self.test)
+                        print(curr_acc, test_acc)
+                        self.net.train()
+
+
+                # evaluate accuracy on forget set every batch
+            with torch.no_grad():
+                self.net.eval()
+                curr_acc = accuracy(self.net, self.forget)
+                test_acc=accuracy(self.net, self.test)
+                self.net.train()
+                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, test is {test_acc:.3f}")
+                if curr_acc < opt.target_accuracy:
+                    flag_exit = True
+
+            if flag_exit:
+                break
+
+            init = False
+            scheduler.step()
+
+
+        self.net.eval()
+        return self.net
