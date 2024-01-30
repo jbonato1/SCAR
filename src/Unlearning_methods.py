@@ -3,7 +3,6 @@ import torchvision
 from torch import nn 
 from torch import optim
 from torch.nn import functional as F
-from utils import com
 from opts import OPT as opt
 import pickle
 from tqdm import tqdm
@@ -20,6 +19,8 @@ def choose_method(name):
         return RandomLabels
     elif name=='DUCK':
         return DUCK
+    elif name=='Mahalanobis':
+        return Mahalanobis
 
 class BaseMethod:
     def __init__(self, net, retain, forget,test=None):
@@ -292,7 +293,7 @@ class Mahalanobis(BaseMethod):
         return cov_mat
 
 
-    def mahalanobis_dist(self, samples, mean,S_inv):
+    def mahalanobis_dist(self, samples,samples_lab, mean,S_inv):
         #check optimized version
         diff = F.normalize(self.tuckey_transf(samples), p=2, dim=-1)[:,None,:] - F.normalize(mean, p=2, dim=-1)
         right_term = torch.matmul(diff.permute(1,0,2), S_inv)
@@ -357,7 +358,7 @@ class Mahalanobis(BaseMethod):
         
         bbone.train(), fc.train()
 
-        optimizer = optim.Adam(self.net.parameters(), lr=opt.lr, weight_decay=opt.wd)
+        optimizer = optim.Adam(self.net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
         scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=opt.scheduler, gamma=0.5)
 
         init = True
@@ -372,7 +373,7 @@ class Mahalanobis(BaseMethod):
 
         print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
         print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
-        for _ in tqdm(range(opt.epochs)):
+        for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
                 for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
