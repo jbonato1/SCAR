@@ -384,7 +384,7 @@ class Mahalanobis(BaseMethod):
                     embs_fgt = bbone(img_fgt)
 
                     # compute Mahalanobis distance between embeddings and cluster
-                    dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv)
+                    dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T
 
 
                     if init:
