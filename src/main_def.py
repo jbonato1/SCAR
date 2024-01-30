@@ -57,8 +57,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
-
-            if opt.method == "DUCK":
+            if opt.method == "DUCK" or opt.method == "Mahalanobis":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
@@ -66,7 +65,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
-            if opt.method == "DUCK" or opt.method == "RandomLabels":
+            if opt.method == "DUCK" or opt.method == "RandomLabels" or opt.method == "Mahalanobis":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
