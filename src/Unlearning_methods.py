@@ -8,6 +8,7 @@ import pickle
 from tqdm import tqdm
 from utils import accuracy
 import time
+from copy import deepcopy
 
 
 def choose_method(name):
@@ -300,6 +301,15 @@ class Mahalanobis(BaseMethod):
         mahalanobis = torch.diagonal(torch.matmul(right_term, diff.permute(1,2,0)),dim1=1,dim2=2)
         return mahalanobis
 
+    def distill(self, outputs_ret, outputs_original):
+
+        soft_log_old = torch.nn.functional.log_softmax(outputs_original+10e-5, dim=1)
+        soft_log_new = torch.nn.functional.log_softmax(outputs_ret+10e-5, dim=1)
+
+        kl_div = torch.nn.functional.kl_div(soft_log_new+10e-5, soft_log_old+10e-5, reduction='batchmean', log_target=True)
+
+        return kl_div
+
     def tuckey_transf(self,vectors,beta=0.5):
         return torch.pow(vectors,beta)
     
@@ -308,7 +318,8 @@ class Mahalanobis(BaseMethod):
         #lambda1 fgt
         #lambda2 retain
 
-
+        original_model = deepcopy(self.net) # self.net
+        original_model.eval()
         bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
         if opt.model == 'AllCNN':
             fc = self.net.classifier
@@ -400,11 +411,12 @@ class Mahalanobis(BaseMethod):
                     dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
 
-                    embs_ret = bbone(img_ret)
-                    logits_ret = fc(embs_ret)
+                    outputs_ret = fc(embs_fgt)
+                    with torch.no_grad():
+                        outputs_original = original_model(img_fgt)
+
+                    loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     
-                    loss_ret = criterion(logits_ret/opt.temperature, lab_ret)*opt.lambda_2
-                    loss = loss_ret+ loss_fgt
                     
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
                         del loss,loss_ret,loss_fgt, embs_fgt, logits_ret, embs_ret,dists
