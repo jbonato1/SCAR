@@ -40,9 +40,11 @@ def get_dset_stats(dloader,num_classes):
 def gen_adv_dataset(model,dloader,device,save_folder,samples_per_class=500,num_classes=100,verbose=False):
 
     dict_stats = get_dset_stats(dloader,num_classes=num_classes)
-
+    images=[]
+    labs=[]
     for i in range(num_classes):
         vec_rdn = torch.zeros((samples_per_class,3,32,32))
+
         for j in range(3):
             vec_rdn[:,j,:,:] = torch.randn((samples_per_class,32,32))*dict_stats[i][1][j]+dict_stats[i][0][j]
 
@@ -62,10 +64,16 @@ def gen_adv_dataset(model,dloader,device,save_folder,samples_per_class=500,num_c
             steps+=30
         #save tensor
         adv_images = adv_images.detach().cpu()
+        images.append(adv_images)
+        labs+=[i for _ in range(samples_per_class)]
         #gen folder name class_i in save_folder
-        os.makedirs(os.path.join(save_folder,f'class_{i}'),exist_ok=True)
-        for j in range(samples_per_class):
-            torch.save(adv_images[j],os.path.join(save_folder,f'class_{i}',f'image_{j}.pt'))
+    images=torch.cat(images,dim=0)
+    labs=torch.tensor(labs)
+    if save_folder is not None:
+        torch.save(images,os.path.join(save_folder,'synt_imgs.pt'))
+        torch.save(labs,os.path.join(save_folder,'synt_labs.pt'))
+    return images, labs
+        
 
 #test function gen_adv_dataset
 if __name__ == "__main__":

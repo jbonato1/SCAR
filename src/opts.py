@@ -19,6 +19,7 @@ def get_args():
     parser.add_argument("--run_original", action='store_true')
     parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
+    parser.add_argument("--load_synt", action='store_true')
 
     parser.add_argument("--num_workers", type=int, default=4)
 
@@ -68,7 +69,7 @@ class OPT:
     save_model = args.save_model
     save_df = args.save_df
     load_unlearned_model = args.load_unlearned_model
-    
+    load_synt=args.load_synt
 
 
     # gets current folder path
@@ -85,10 +86,10 @@ class OPT:
     data_path = os.path.expanduser('~/data')
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 5
+        batch_fgt_ret_ratio = 1
     elif dataset == 'cifar100':
         num_classes = 100
-        batch_fgt_ret_ratio = 5
+        batch_fgt_ret_ratio = 10
     elif dataset == 'tinyImagenet':
         num_classes = 200
         batch_fgt_ret_ratio = 90
@@ -122,13 +123,13 @@ class OPT:
     weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'
     if model== 'resnet18':
         if dataset== 'cifar100':
-            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar100/Final_CIFAR100_Resnet18.pth'
    
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
         
         elif dataset== 'cifar10':
-            or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar10/Final_CIFAR10_Resnet18.pth'
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 

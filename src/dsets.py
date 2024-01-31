@@ -9,6 +9,7 @@ from opts import OPT as opt
 from PIL import Image
 import pandas as pd
 import glob
+from gen_adversarial_dset import gen_adv_dataset
 
 
 def split_retain_forget(dataset, class_to_remove):
@@ -282,3 +283,23 @@ class CustomDataset_10subj(Dataset):
             image = self.transform(image)
 
         return image, label
+
+class SyntDataset(torch.utils.data.Dataset):
+    def __init__(self, load_synt=False, path=None, pretr_model=None, train_loader=None, save_folder=None,transform=None):
+        self.transform=transform
+        if load_synt:
+            self.imgs=torch.load(os.path.join(path,"synt_imgs.pt"))
+            self.targets=torch.load(os.path.join(path,"synt_labs.pt"))
+        else:
+            self.imgs, self.targets=gen_adv_dataset(pretr_model,train_loader,device=opt.device,save_folder=save_folder,samples_per_class=200,num_classes=opt.num_classes,verbose=True)
+
+    def __getitem__(self, index):
+        img = self.imgs[index].to(opt.device)
+        label = self.targets[index].to(opt.device)
+
+        if self.transform:
+            img = self.transform(img)
+
+        return img, label
+    def __len__(self):
+        return len(self.imgs)
