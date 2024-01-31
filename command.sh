@@ -1,0 +1,1 @@
+python3 main_def.py --run_name cifar10_CR --dataset cifar10 --mode CR --cuda 0 --run_unlearn  --num_workers 4 --method Mahalanobis --model resnet18 --bsize 1024 --lr 0.001 --epochs 10  --temperature 2 --lambda_1 1. --lambda_2 0.1 --load_synt
