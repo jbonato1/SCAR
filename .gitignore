@@ -5,6 +5,7 @@
 *.pth
 *.npy
 *.pt
+*.tif
 forget_id_files/
 data/
 __pycache__/
