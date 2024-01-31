@@ -1,5 +1,5 @@
 from copy import deepcopy
-from dsets import get_dsets_remove_class, get_dsets
+from dsets import get_dsets_remove_class, get_dsets, SyntDataset, split_retain_forget
 import pandas as pd
 from error_propagation import Complex
 from utils import accuracy, set_seed, get_retrained_model,get_trained_model
@@ -7,6 +7,7 @@ from MIA_code.MIA import get_MIA_SVC
 from opts import OPT as opt
 import torch.nn as nn
 from tqdm import tqdm
+from gen_adversarial_dset import gen_adv_dataset
 import time
 from Unlearning_methods import choose_method
 from error_propagation import Complex
@@ -22,7 +23,7 @@ def AUS(a_t, a_or, a_f):
         aus=(Complex(1, 0)-(a_or-a_t))/(Complex(1, 0)+abs(a_f))
     return aus
 
-def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0):
+def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_fgt_loader=None, test_retain_loader=None, class_to_remove=0, train_loader=None):
     v_orig, v_unlearn, v_rt = None, None, None
     original_pretr_model = get_trained_model()
     original_pretr_model.to(opt.device)
@@ -57,16 +58,26 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
-            if opt.method == "DUCK" or opt.method == "Mahalanobis":
+            if opt.method == "DUCK":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
+            elif opt.method=="Mahalanobis":
+                syn_dset = SyntDataset(load_synt=opt.load_synt)
+                train_retain_loader = torch.utils.data.DataLoader(syn_dset, batch_size=opt.bsize, shuffle=True, num_workers=opt.num_workers)
+                approach=choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
 
 
         elif opt.mode == "CR":
             opt.target_accuracy = 0.01
-            if opt.method == "DUCK" or opt.method == "RandomLabels" or opt.method == "Mahalanobis":
+            if opt.method == "DUCK" or opt.method == "RandomLabels":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
+            elif opt.method=="Mahalanobis":
+                syn_dset = SyntDataset(load_synt=opt.load_synt, save_folder=os.path.join("../syn_dst_"+opt.dataset),train_loader=train_loader,pretr_model=pretr_model, path=os.path.join("../syn_dst_"+opt.dataset))
+                train_retain_syn, train_fgt_syn=split_retain_forget(syn_dset, class_to_remove)
+                train_retain_syn_loader = torch.utils.data.DataLoader(train_retain_syn, batch_size=opt.batch_size, shuffle=True, num_workers=0)
+                print("METHOD", opt.method)
+                approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_retain_syn_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 
@@ -185,12 +196,12 @@ if __name__ == "__main__":
         elif opt.mode == "CR":
             for class_to_remove in opt.class_to_remove:
                 print(f'------------class {class_to_remove}-----------')
-                _, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
+                all_train_loader, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
 
                 opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_remove}.pth'
                 print(opt.RT_model_weights_path)
 
-                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_remove)
+                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_remove, train_loader=all_train_loader)
 
                 #print results
                 
