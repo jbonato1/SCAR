@@ -274,10 +274,11 @@ class DUCK(BaseMethod):
         return self.net
 
 class Mahalanobis(BaseMethod):
-    def __init__(self, net, retain, forget,test,class_to_remove=None):
+    def __init__(self, net, retain, retain_syn, forget,test,class_to_remove=None):
         super().__init__(net, retain, forget, test)
         self.loader = None
         self.class_to_remove = class_to_remove
+        self.retain_syn = retain_syn
 
     def cov_mat_shrinkage(self,cov_mat,gamma1=1,gamma2=1):
         I = torch.eye(cov_mat.shape[0]).to(opt.device)
@@ -313,18 +314,6 @@ class Mahalanobis(BaseMethod):
 
     def tuckey_transf(self,vectors,beta=0.5):
         return torch.pow(vectors,beta)
-    
-    def generate_samples(self,model,shape):
-        attk=PGD(model,eps=150/255, alpha=2/255, steps=30)
-        attk.set_mode_targeted_by_label()
-        inputs=torch.rand(shape).to(opt.device)
-        targets=torch.randint(0,opt.num_classes,(shape[0],)).to(opt.device)
-        if opt.mode=='CR':
-            targets=torch.where(targets==0,1,targets)
-        adv_exs=attk(inputs,targets)
-        print(targets[:20])
-        print(torch.argmax(model(adv_exs),dim=1)[:20])
-        return adv_exs
     
     def run(self):
         """compute embeddings"""
@@ -400,9 +389,8 @@ class Mahalanobis(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_syn):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
-                    
                     optimizer.zero_grad()
 
                     embs_fgt = bbone(img_fgt)
@@ -423,13 +411,10 @@ class Mahalanobis(BaseMethod):
 
                     dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
-                    from pdb import set_trace as bp
-                    bp()
-                    adv_exs=self.generate_samples(original_model,img_fgt.shape)
 
-                    outputs_ret = fc(embs_fgt)
+                    outputs_ret = fc(bbone(img_ret))
                     with torch.no_grad():
-                        outputs_original = original_model(img_fgt)
+                        outputs_original = original_model(img_ret)
 
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
@@ -455,7 +440,7 @@ class Mahalanobis(BaseMethod):
                 curr_acc = accuracy(self.net, self.forget)
                 test_acc=accuracy(self.net, self.test)
                 self.net.train()
-                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, test is {test_acc:.3f}")
+                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, forget test is {test_acc:.3f}")
                 if curr_acc < opt.target_accuracy:
                     flag_exit = True
 
