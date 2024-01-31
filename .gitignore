@@ -4,6 +4,7 @@
 *.zip
 *.pth
 *.npy
+*.pt
 forget_id_files/
 data/
 __pycache__/
