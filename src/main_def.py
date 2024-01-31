@@ -74,7 +74,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             elif opt.method=="Mahalanobis":
                 syn_dset = SyntDataset(load_synt=opt.load_synt, save_folder=os.path.join("../syn_dst_"+opt.dataset),train_loader=train_loader,pretr_model=pretr_model, path=os.path.join("../syn_dst_"+opt.dataset))
-                train_retain_syn, train_fgt_syn=split_retain_forget(syn_dset, class_to_remove)
+                train_fgt_syn, train_retain_syn=split_retain_forget(syn_dset, class_to_remove)
                 train_retain_syn_loader = torch.utils.data.DataLoader(train_retain_syn, batch_size=opt.batch_size, shuffle=True, num_workers=0)
                 print("METHOD", opt.method)
                 approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_retain_syn_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
