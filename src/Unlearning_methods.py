@@ -464,7 +464,7 @@ class Mahalanobis(BaseMethod):
                 break
 
             init = False
-            scheduler.step()
+            #scheduler.step()
 
 
         self.net.eval()
