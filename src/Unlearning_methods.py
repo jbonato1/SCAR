@@ -280,7 +280,7 @@ class Mahalanobis(BaseMethod):
         self.class_to_remove = class_to_remove
         self.retain_syn = retain_syn
 
-    def cov_mat_shrinkage(self,cov_mat,gamma1=3,gamma2=3):
+    def cov_mat_shrinkage(self,cov_mat,gamma1=1,gamma2=1):
         I = torch.eye(cov_mat.shape[0]).to(opt.device)
         V1 = torch.mean(torch.diagonal(cov_mat))
         off_diag = cov_mat.clone()
@@ -322,14 +322,12 @@ class Mahalanobis(BaseMethod):
 
         original_model = deepcopy(self.net) # self.net
         original_model.eval()
-
         bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
         if opt.model == 'AllCNN':
             fc = self.net.classifier
         else:
             fc = self.net.fc
         
-
         bbone.eval()
 
  
@@ -391,7 +389,7 @@ class Mahalanobis(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_syn):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
 
@@ -413,39 +411,30 @@ class Mahalanobis(BaseMethod):
 
                     dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
+
                     outputs_ret = fc(bbone(img_ret))
                     with torch.no_grad():
                         outputs_original = original_model(img_ret)
-                        if opt.mode == 'CR':
-                            outputs_original[:,torch.tensor(opt.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
 
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
                     
                     
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
-                        del loss,loss_ret,loss_fgt, embs_fgt, outputs_ret,dists,outputs_original
+                        del loss,loss_ret,loss_fgt, embs_fgt, logits_ret, embs_ret,dists
                         break
-                    print(f'n_batch:{n_batch},n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
+                    print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
                     loss.backward()
                     optimizer.step()
                     with torch.no_grad():
                         self.net.eval()
                         curr_acc = accuracy(self.net, self.forget)
-                        
-                        print(f'acc forget: {curr_acc:.3f}, acc retain syn is {accuracy(self.net, self.retain_syn):.3f},acc retain is {accuracy(self.net, self.retain):.3f}')
+                        test_acc=accuracy(self.net, self.test)
+                        print(curr_acc, test_acc)
                         self.net.train()
-                        if curr_acc < opt.target_accuracy:
-                            flag_exit = True
-                        if flag_exit:
-                            break
 
 
-                if flag_exit:
-                    break
-
-            # evaluate accuracy on forget set every batch
-            #si può rimuovere 
+                # evaluate accuracy on forget set every batch
             with torch.no_grad():
                 self.net.eval()
                 curr_acc = accuracy(self.net, self.forget)

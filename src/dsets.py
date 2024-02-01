@@ -10,9 +10,9 @@ from PIL import Image
 import pandas as pd
 import glob
 from gen_adversarial_dset import gen_adv_dataset
-import copy
 
-def split_retain_forget(dataset, class_to_remove,tr_fgt=None,tr_retain=None):
+
+def split_retain_forget(dataset, class_to_remove):
 
     # find forget indices
     #print(np.unique(np.array(dataset.targets),return_counts=True))
@@ -31,14 +31,9 @@ def split_retain_forget(dataset, class_to_remove,tr_fgt=None,tr_retain=None):
     forget_mask = np.zeros(len(dataset.targets), dtype=bool)
     forget_mask[forget_idx] = True
     retain_idx = np.arange(forget_mask.size)[~forget_mask]
-    if tr_fgt is not None:
-        dataset_clone = copy.deepcopy(dataset)
-        dataset_clone.transform= tr_fgt
-        forget_set = Subset(dataset_clone, forget_idx)
-        retain_set = Subset(dataset, retain_idx)
-    else:
-        forget_set = Subset(dataset, forget_idx)
-        retain_set = Subset(dataset, retain_idx)
+
+    forget_set = Subset(dataset, forget_idx)
+    retain_set = Subset(dataset, retain_idx)
 
     return forget_set, retain_set
 
@@ -60,13 +55,7 @@ def get_dsets_remove_class(class_to_remove):
 
     # download and pre-process CIFAR10
     transform_dset = transforms.Compose(
-        [   transforms.RandomHorizontalFlip(),
-            transforms.RandomCrop(32, padding=4),
-            transforms.ToTensor(),
-            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
-        ]
-    )
-    transform_dsetF = transforms.Compose([
+        [
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
@@ -75,14 +64,14 @@ def get_dsets_remove_class(class_to_remove):
     # we split held out - train
     if opt.dataset == 'cifar10':
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
-        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dsetF)
+        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
     elif opt.dataset == 'cifar100':
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
-        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dsetF)
+        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
         
     elif opt.dataset == 'tinyImagenet':
         train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_dset)
-        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_dsetF)
+        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_dset)
 
     elif opt.dataset == 'VGG':
         
@@ -149,7 +138,7 @@ def get_dsets_remove_class(class_to_remove):
         return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
     
     test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
-    forget_set, retain_set = split_retain_forget(train_set, class_to_remove,tr_fgt=transform_dsetF,tr_retain=transform_dset)
+    forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
 
     # validation set and its subsets 
     all_test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
@@ -302,7 +291,7 @@ class SyntDataset(torch.utils.data.Dataset):
             self.imgs=torch.load(os.path.join(path,"synt_imgs.pt"))
             self.targets=torch.load(os.path.join(path,"synt_labs.pt"))
         else:
-            self.imgs, self.targets=gen_adv_dataset(pretr_model,train_loader,device=opt.device,save_folder=save_folder,samples_per_class=1000,num_classes=opt.num_classes,verbose=True)
+            self.imgs, self.targets=gen_adv_dataset(pretr_model,train_loader,device=opt.device,save_folder=save_folder,samples_per_class=200,num_classes=opt.num_classes,verbose=True)
 
     def __getitem__(self, index):
         img = self.imgs[index].to(opt.device)
