@@ -389,7 +389,7 @@ class Mahalanobis(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_syn):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
 
@@ -432,7 +432,8 @@ class Mahalanobis(BaseMethod):
                         self.net.eval()
                         curr_acc = accuracy(self.net, self.forget)
                         test_acc=accuracy(self.net, self.test)
-                        print(f'ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, forget test is {test_acc:.3f}')
+                        ret_acc=accuracy(self.net, self.retain)
+                        print(f'ACCURACY FORGET SET: {curr_acc:.3f} ACCURACY RETAIN: {ret_acc:.3f}')
                         self.net.train()
                         if curr_acc < opt.target_accuracy:
                             flag_exit = True

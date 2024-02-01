@@ -9,10 +9,11 @@ from opts import OPT as opt
 from PIL import Image
 import pandas as pd
 import glob
+import copy
 from gen_adversarial_dset import gen_adv_dataset
 
 
-def split_retain_forget(dataset, class_to_remove):
+def split_retain_forget(dataset, class_to_remove, trns_fgt=None):
 
     # find forget indices
     #print(np.unique(np.array(dataset.targets),return_counts=True))
@@ -31,8 +32,10 @@ def split_retain_forget(dataset, class_to_remove):
     forget_mask = np.zeros(len(dataset.targets), dtype=bool)
     forget_mask[forget_idx] = True
     retain_idx = np.arange(forget_mask.size)[~forget_mask]
-
-    forget_set = Subset(dataset, forget_idx)
+    dataset_clone=copy.deepcopy(dataset)
+    if trns_fgt:
+        dataset_clone.transform=trns_fgt
+    forget_set = Subset(dataset_clone, forget_idx)
     retain_set = Subset(dataset, retain_idx)
 
     return forget_set, retain_set
@@ -57,6 +60,15 @@ def get_dsets_remove_class(class_to_remove):
     transform_dset = transforms.Compose(
         [
             transforms.ToTensor(),
+            transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+    )
+
+    transform_test= transforms.Compose(
+        [
+            transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
     )
@@ -64,14 +76,14 @@ def get_dsets_remove_class(class_to_remove):
     # we split held out - train
     if opt.dataset == 'cifar10':
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
-        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        test_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_test)
     elif opt.dataset == 'cifar100':
         train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
-        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        test_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_test)
         
     elif opt.dataset == 'tinyImagenet':
         train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train',transform=transform_dset)
-        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_dset)
+        test_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images',transform=transform_test)
 
     elif opt.dataset == 'VGG':
         
@@ -138,7 +150,7 @@ def get_dsets_remove_class(class_to_remove):
         return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
     
     test_forget_set, test_retain_set = split_retain_forget(test_set, class_to_remove)
-    forget_set, retain_set = split_retain_forget(train_set, class_to_remove)
+    forget_set, retain_set = split_retain_forget(train_set, class_to_remove, transform_test)
 
     # validation set and its subsets 
     all_test_loader = DataLoader(test_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
