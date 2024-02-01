@@ -314,3 +314,29 @@ class SyntDataset(torch.utils.data.Dataset):
         return img, label
     def __len__(self):
         return len(self.imgs)
+    
+def get_surrogate():
+    mean = {
+            'subset_tiny': (0.485, 0.456, 0.406),
+            'subset_Imagenet': (0.4914, 0.4822, 0.4465),
+
+            }
+
+    std = {
+            'subset_tiny': (0.229, 0.224, 0.225),
+            'subset_Imagenet': (0.4914, 0.4822, 0.4465),
+            }
+
+    # download and pre-process CIFAR10
+    transform_dset = transforms.Compose(
+        [   transforms.Resize(64,antialias=True) if opt.dataset == 'tinyImagenet' else transforms.Resize(32,antialias=True),
+            transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
+        ]
+    )
+
+    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,opt.surrogate_dataset),transform=transform_dset)
+    loader_surrogate = DataLoader(set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    return loader_surrogate
