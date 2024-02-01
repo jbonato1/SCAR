@@ -1,5 +1,5 @@
 from copy import deepcopy
-from dsets import get_dsets_remove_class, get_dsets, SyntDataset, split_retain_forget
+from dsets import get_dsets_remove_class, get_dsets, SyntDataset, split_retain_forget,get_surrogate
 import pandas as pd
 from error_propagation import Complex
 from utils import accuracy, set_seed, get_retrained_model,get_trained_model
@@ -56,14 +56,18 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         timestamp1 = time.time()
 
+        if opt.method == 'Mahalanobis' and opt.surrogate_dataset!='':
+            train_surrogate_loader = get_surrogate()
+ 
+
         if opt.mode == "HR":
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
             if opt.method == "DUCK":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             elif opt.method=="Mahalanobis":
-                syn_dset = SyntDataset(load_synt=opt.load_synt)
-                train_retain_loader = torch.utils.data.DataLoader(syn_dset, batch_size=opt.bsize, shuffle=True, num_workers=opt.num_workers)
-                approach=choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
+                
+                #check
+                approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_loader, class_to_remove=None)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader)
 
@@ -73,11 +77,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             if opt.method == "DUCK" or opt.method == "RandomLabels":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             elif opt.method=="Mahalanobis":
-                #syn_dset = SyntDataset(load_synt=opt.load_synt, save_folder=os.path.join("../syn_dst_"+opt.dataset),train_loader=train_loader,pretr_model=pretr_model, path=os.path.join("../syn_dst_"+opt.dataset))
-                #train_retain_syn, train_fgt_syn=split_retain_forget(syn_dset, class_to_remove)
-                #train_retain_syn_loader = torch.utils.data.DataLoader(train_retain_syn, batch_size=opt.batch_size, shuffle=True, num_workers=0)
                 print("METHOD", opt.method)
-                approach=choose_method(opt.method)(pretr_model,train_retain_loader,None, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
+                approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 

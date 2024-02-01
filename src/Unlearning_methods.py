@@ -274,11 +274,11 @@ class DUCK(BaseMethod):
         return self.net
 
 class Mahalanobis(BaseMethod):
-    def __init__(self, net, retain, retain_syn, forget,test,class_to_remove=None):
+    def __init__(self, net, retain, retain_sur, forget,test,class_to_remove=None):
         super().__init__(net, retain, forget, test)
         self.loader = None
         self.class_to_remove = class_to_remove
-        self.retain_syn = retain_syn
+        self.retain_sur = retain_sur
 
     def cov_mat_shrinkage(self,cov_mat,gamma1=3,gamma2=3):
         I = torch.eye(cov_mat.shape[0]).to(opt.device)
@@ -384,12 +384,12 @@ class Mahalanobis(BaseMethod):
         criterion = nn.CrossEntropyLoss(label_smoothing=ls)
         
 
-        print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
+        print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain_sur))
         print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
 
@@ -416,14 +416,19 @@ class Mahalanobis(BaseMethod):
                     with torch.no_grad():
                         outputs_original = original_model(img_ret)
                         if opt.mode =='CR':
+                            label_out = torch.argmax(outputs_original,dim=1)
+                            ##### da correggere per multiclass
+                            outputs_original = outputs_original[label_out!=self.class_to_remove[0],:]
+                            
                             outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
 
+                    outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
                     
                     
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
-                        del loss,loss_ret,loss_fgt, embs_fgt, logits_ret, embs_ret,dists
+                        del loss,loss_ret,loss_fgt, embs_fgt,dists
                         break
                     print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
                     loss.backward()
@@ -433,7 +438,8 @@ class Mahalanobis(BaseMethod):
                         curr_acc = accuracy(self.net, self.forget)
                         test_acc=accuracy(self.net, self.test)
                         ret_acc=accuracy(self.net, self.retain)
-                        print(f'ACCURACY FORGET SET: {curr_acc:.3f} ACCURACY RETAIN: {ret_acc:.3f}')
+                        ret_sur = accuracy(self.net, self.retain_sur)
+                        print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc ret sur: {ret_sur:.3f}')
                         self.net.train()
                         if curr_acc < opt.target_accuracy:
                             flag_exit = True

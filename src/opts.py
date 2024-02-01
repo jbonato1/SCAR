@@ -15,11 +15,12 @@ def get_args():
     parser.add_argument("--save_model", action='store_true')
     parser.add_argument("--save_df", action='store_true')
     parser.add_argument("--push_results", action='store_true')#set to true to push results
-
+   
     parser.add_argument("--run_original", action='store_true')
     parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
-    parser.add_argument("--load_synt", action='store_true')
+
+    parser.add_argument("--surrogate_dataset", type=str, default='')
 
     parser.add_argument("--num_workers", type=int, default=4)
 
@@ -45,7 +46,7 @@ class OPT:
     print(args)
     run_name = args.run_name
     dataset = args.dataset
-
+    surrogate_dataset = args.surrogate_dataset
     
     mode = args.mode
     if args.mode == 'HR':
@@ -69,7 +70,7 @@ class OPT:
     save_model = args.save_model
     save_df = args.save_df
     load_unlearned_model = args.load_unlearned_model
-    load_synt=args.load_synt
+
 
 
     # gets current folder path
@@ -96,7 +97,7 @@ class OPT:
     elif dataset == 'VGG':
         num_classes = 10
     
-    
+
     num_workers = args.num_workers
 
     method = args.method#'DUCK' #NegativeGradient, RandomLabels,...
