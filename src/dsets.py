@@ -58,10 +58,9 @@ def get_dsets_remove_class(class_to_remove):
 
     # download and pre-process CIFAR10
     transform_dset = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
     )

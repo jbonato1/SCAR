@@ -416,7 +416,7 @@ class Mahalanobis(BaseMethod):
                     with torch.no_grad():
                         outputs_original = original_model(img_ret)
                         if opt.mode =='CR':
-                            outputs_original[:,torch.tensor(opt.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
+                            outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
 
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
