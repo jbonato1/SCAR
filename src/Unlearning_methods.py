@@ -389,7 +389,7 @@ class Mahalanobis(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_syn):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
 
@@ -416,14 +416,14 @@ class Mahalanobis(BaseMethod):
                     with torch.no_grad():
                         outputs_original = original_model(img_ret)
                         if opt.mode =='CR':
-                            outputs_original[:,torch.tensor(opt.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
+                            outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
 
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
                     
                     
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
-                        del loss,loss_ret,loss_fgt, embs_fgt, logits_ret, embs_ret,dists
+                        del loss,loss_ret,loss_fgt, embs_fgt, outputs_ret, dists
                         break
                     print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
                     loss.backward()
