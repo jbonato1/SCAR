@@ -280,7 +280,7 @@ class Mahalanobis(BaseMethod):
         self.class_to_remove = class_to_remove
         self.retain_syn = retain_syn
 
-    def cov_mat_shrinkage(self,cov_mat,gamma1=1,gamma2=1):
+    def cov_mat_shrinkage(self,cov_mat,gamma1=3,gamma2=3):
         I = torch.eye(cov_mat.shape[0]).to(opt.device)
         V1 = torch.mean(torch.diagonal(cov_mat))
         off_diag = cov_mat.clone()
@@ -415,6 +415,8 @@ class Mahalanobis(BaseMethod):
                     outputs_ret = fc(bbone(img_ret))
                     with torch.no_grad():
                         outputs_original = original_model(img_ret)
+                        if opt.mode =='CR':
+                            outputs_original[:,torch.tensor(opt.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
 
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
@@ -430,11 +432,18 @@ class Mahalanobis(BaseMethod):
                         self.net.eval()
                         curr_acc = accuracy(self.net, self.forget)
                         test_acc=accuracy(self.net, self.test)
-                        print(curr_acc, test_acc)
+                        print(f'ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, forget test is {test_acc:.3f}')
                         self.net.train()
+                        if curr_acc < opt.target_accuracy:
+                            flag_exit = True
 
+                    if flag_exit:
+                        break
+                if flag_exit:
+                    break
 
-                # evaluate accuracy on forget set every batch
+            # evaluate accuracy on forget set every batch
+            #this can be removed
             with torch.no_grad():
                 self.net.eval()
                 curr_acc = accuracy(self.net, self.forget)
