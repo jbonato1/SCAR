@@ -183,6 +183,14 @@ def get_dsets(file_fgt=None):
             }
 
     transform_dset = transforms.Compose(
+        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+    )
+
+    transform_test= transforms.Compose(
         [
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
@@ -190,8 +198,8 @@ def get_dsets(file_fgt=None):
     )
     
     if opt.dataset == 'cifar10':
-        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_dset)
-        held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_test)
+        held_out = torchvision.datasets.CIFAR10(root=opt.data_path, train=False, download=True, transform=transform_test)
         if file_fgt is None:
             forget_idx = np.loadtxt('./forget_idx_5000_cifar10.txt').astype(np.int64)
         else:
@@ -200,8 +208,8 @@ def get_dsets(file_fgt=None):
 
 
     elif opt.dataset=='cifar100':
-        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_dset)
-        held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_dset)
+        train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transform_test)
+        held_out = torchvision.datasets.CIFAR100(root=opt.data_path, train=False, download=True, transform=transform_test)
         #use numpy modules to read txt file for cifar100
         if file_fgt is None:
             forget_idx = np.loadtxt('./forget_idx_5000_cifar100.txt').astype(np.int64)
@@ -209,8 +217,8 @@ def get_dsets(file_fgt=None):
             forget_idx = np.loadtxt(file_fgt).astype(np.int64)
 
     elif opt.dataset == 'tinyImagenet':
-        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_dset)
-        held_out = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_dset)
+        train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transform_test)
+        held_out = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/val/images/',transform=transform_test)
         if file_fgt is None:
             forget_idx = np.loadtxt('./forget_idx_5000_tinyImagenet.txt').astype(np.int64)
         else:
@@ -234,13 +242,14 @@ def get_dsets(file_fgt=None):
     forget_mask = np.zeros(len(train_set.targets), dtype=bool)
     forget_mask[forget_idx] = True
     retain_idx = np.arange(forget_mask.size)[~forget_mask]
-
-    forget_set = Subset(train_set, forget_idx)
+    train_set_clone=copy.deepcopy(train_set)
+    train_set_clone.transform=transform_test
+    forget_set = Subset(train_set_clone, forget_idx)
     retain_set = Subset(train_set, retain_idx)
 
 
-    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=True, shuffle=False, num_workers=opt.num_workers)
-    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=True, shuffle=True, num_workers=opt.num_workers)
+    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
+    train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
 
     return train_loader, test_loader, train_forget_loader, train_retain_loader
 

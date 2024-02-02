@@ -31,12 +31,16 @@ def get_args():
     parser.add_argument("--bsize", type=int, default=1024)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--lr", type=float, default=0.0005)
+    parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
     parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
-    parser.add_argument("--lambda_2", type=float, default=5)
+    parser.add_argument("--lambda_2", type=float, default=1.4)
+
+    parser.add_argument("--beta", type=float, default=.5)
+    parser.add_argument("--gamma1", type=float, default=3)
+    parser.add_argument("--gamma2", type=float, default=3)
 
     options = parser.parse_args()
     return options
@@ -95,7 +99,7 @@ class OPT:
         batch_fgt_ret_ratio = 1
     elif dataset == 'cifar100':
         num_classes = 100
-        batch_fgt_ret_ratio = 10
+        batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
         batch_fgt_ret_ratio = 90
@@ -120,6 +124,9 @@ class OPT:
     #DUCK specific
     lambda_1 = args.lambda_1
     lambda_2 = args.lambda_2
+    beta = args.beta
+    gamma1 = args.gamma1
+    gamma2 = args.gamma2
     target_accuracy = 0.01 
     
     #MIA specific
