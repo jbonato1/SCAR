@@ -319,25 +319,37 @@ def get_surrogate():
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
-            'rnd_img': [0.5969, 0.5444, 0.4877],
+            'subset_rnd_img': (0.5969, 0.5444, 0.4877),
+            'subset_COCO': (0.485,0.456,0.406)
             }
 
     std = {
             'subset_tiny': (0.229, 0.224, 0.225),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
-            'rnd_img': (0.3366, 0.3260, 0.3411),
+            'subset_rnd_img': (0.3366, 0.3260, 0.3411),
+            'subset_COCO': (0.229,0.224,0.225)
             }
 
     # download and pre-process CIFAR10
     transform_dset = transforms.Compose(
-        [   transforms.Resize(64,antialias=True) if opt.dataset == 'tinyImagenet' else transforms.Resize(32,antialias=True),
-            transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
     )
+    if opt.dataset == 'tinyImagenet':
+        dataset_variant = '_64'
+    else:
+        dataset_variant = '_32'
+    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset+dataset_variant),transform=transform_dset)
+    if opt.surrogate_quantity == -1:
+        subset = set
+    else:
+        class_list = [i for i in range(min(opt.surrogate_quantity,len(set.classes)))]
+        idx = [i for i in range(len(set)) if set.imgs[i][1] in class_list]
+        #build the appropriate subset
+        subset = torch.utils.data.Subset(set, idx)
 
-    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,opt.surrogate_dataset),transform=transform_dset)
-    loader_surrogate = DataLoader(set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    loader_surrogate = DataLoader(subset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
     return loader_surrogate
