@@ -20,7 +20,7 @@ def get_args():
     parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
 
-    parser.add_argument("--surrogate_dataset", type=str, default='')
+    parser.add_argument("--surrogate_dataset", type=str, default='rnd_img')
     parser.add_argument("--surrogate_quantity", type=int, default=-1,help='-1 for all data,1 for 1k data,2 for 2k data,..., 10 for 10k data')
 
     parser.add_argument("--num_workers", type=int, default=4)
