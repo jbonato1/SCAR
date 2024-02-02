@@ -319,12 +319,13 @@ def get_surrogate():
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
-
+            'rnd_img': [0.5969, 0.5444, 0.4877],
             }
 
     std = {
             'subset_tiny': (0.229, 0.224, 0.225),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
+            'rnd_img': (0.3366, 0.3260, 0.3411),
             }
 
     # download and pre-process CIFAR10
