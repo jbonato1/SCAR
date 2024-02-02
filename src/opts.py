@@ -20,7 +20,8 @@ def get_args():
     parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
 
-    parser.add_argument("--surrogate_dataset", type=str, default='rnd_img')
+    parser.add_argument("--surrogate_dataset", type=str, default='subset_Imagenet')
+    parser.add_argument("--surrogate_quantity", type=int, default=80,help='-1 for all data,1 for 1k data,2 for 2k data,..., 10 for 10k data')
 
     parser.add_argument("--num_workers", type=int, default=4)
 
@@ -47,7 +48,11 @@ class OPT:
     run_name = args.run_name
     dataset = args.dataset
     surrogate_dataset = args.surrogate_dataset
-    
+    surrogate_quantity = args.surrogate_quantity
+    if surrogate_quantity == 0 and args.method== 'Mahalanobis':
+        #raise error
+        raise Exception("No surrrogate data available for Mahalanobis, please set surrogate quantity>0")
+
     mode = args.mode
     if args.mode == 'HR':
         seed = [0,1,2,3,4,5,6,7,8,42]
