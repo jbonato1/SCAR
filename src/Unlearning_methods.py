@@ -253,7 +253,6 @@ class DUCK(BaseMethod):
                     loss.backward()
                     optimizer.step()
 
-
                 # evaluate accuracy on forget set every batch
             with torch.no_grad():
                 self.net.eval()
@@ -280,7 +279,7 @@ class Mahalanobis(BaseMethod):
         self.class_to_remove = class_to_remove
         self.retain_sur = retain_sur
 
-    def cov_mat_shrinkage(self,cov_mat,gamma1=3,gamma2=3):
+    def cov_mat_shrinkage(self,cov_mat,gamma1=opt.gamma1,gamma2=opt.gamma2):
         I = torch.eye(cov_mat.shape[0]).to(opt.device)
         V1 = torch.mean(torch.diagonal(cov_mat))
         off_diag = cov_mat.clone()
@@ -312,9 +311,17 @@ class Mahalanobis(BaseMethod):
 
         return kl_div
 
-    def tuckey_transf(self,vectors,beta=0.5):
+    def tuckey_transf(self,vectors,beta=opt.beta):
         return torch.pow(vectors,beta)
     
+    def pairwise_cos_dist(self, x, y):
+        """Compute pairwise cosine distance between two tensors"""
+        x_norm = torch.norm(x, dim=1).unsqueeze(1)
+        y_norm = torch.norm(y, dim=1).unsqueeze(1)
+        x = x / x_norm
+        y = y / y_norm
+        return 1 - torch.mm(x, y.transpose(0, 1))
+ 
     def run(self):
         """compute embeddings"""
         #lambda1 fgt
@@ -359,10 +366,11 @@ class Mahalanobis(BaseMethod):
                     cov_shrinked = self.normalize_cov(cov_shrinked)
                     cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
             else:
+                
                 samples = self.tuckey_transf(ret_embs[labs==i])
                 distribs.append(samples.mean(0))
                 cov = torch.cov(samples.T)
-                cov_shrinked = self.cov_mat_shrinkage(cov)
+                cov_shrinked = self.cov_mat_shrinkage(self.cov_mat_shrinkage(cov))
                 cov_shrinked = self.normalize_cov(cov_shrinked)
                 cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
 
@@ -389,7 +397,7 @@ class Mahalanobis(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
 
@@ -397,7 +405,7 @@ class Mahalanobis(BaseMethod):
 
                     # compute Mahalanobis distance between embeddings and cluster
                     dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T
-
+                    #dists = self.pairwise_cos_dist(embs_fgt, distribs)
 
                     if init:
                         closest_class = torch.argsort(dists, dim=1)
@@ -421,8 +429,9 @@ class Mahalanobis(BaseMethod):
                             outputs_original = outputs_original[label_out!=self.class_to_remove[0],:]
                             
                             outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
-
-                    outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
+                    if opt.mode =='CR':
+                        outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
+                    
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
                     
@@ -438,8 +447,8 @@ class Mahalanobis(BaseMethod):
                         curr_acc = accuracy(self.net, self.forget)
                         test_acc=accuracy(self.net, self.test)
                         ret_acc=accuracy(self.net, self.retain)
-                        ret_sur = accuracy(self.net, self.retain_sur)
-                        print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc ret sur: {ret_sur:.3f}')
+                        #ret_sur = accuracy(self.net, self.retain_sur)
+                        print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc test: {test_acc:.3f}')
                         self.net.train()
                         if curr_acc < opt.target_accuracy:
                             flag_exit = True
@@ -456,7 +465,7 @@ class Mahalanobis(BaseMethod):
                 curr_acc = accuracy(self.net, self.forget)
                 test_acc=accuracy(self.net, self.test)
                 self.net.train()
-                print(f"ACCURACY FORGET SET: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, forget test is {test_acc:.3f}")
+                print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, test is {test_acc:.3f}")
                 if curr_acc < opt.target_accuracy:
                     flag_exit = True
 

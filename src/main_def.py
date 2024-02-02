@@ -106,7 +106,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         unlearn_time = time.time() - timestamp1
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
-            df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
+            #df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
+            df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
 
@@ -116,9 +117,11 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         print("UNLEARNING COMPLETED, COMPUTING ACCURACIES...")      
         if opt.mode == "HR":
             df_un_model["test_accuracy"] = accuracy(unlearned_model, test_loader)
+            print(f'test acc: {df_un_model["test_accuracy"]}')
         elif opt.mode == "CR":
             df_un_model["forget_test_accuracy"] = accuracy(unlearned_model, test_fgt_loader)
             df_un_model["retain_test_accuracy"] = accuracy(unlearned_model, test_retain_loader)
+            print(f'forget test acc: {df_un_model["forget_test_accuracy"]}, retain test acc: {df_un_model["retain_test_accuracy"]}')
 
         df_un_model["forget_accuracy"] = accuracy(unlearned_model, train_fgt_loader)
         df_un_model["retain_accuracy"] = accuracy(unlearned_model, train_retain_loader)
