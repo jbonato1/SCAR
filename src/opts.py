@@ -6,7 +6,7 @@ from error_propagation import Complex
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_name", type=str, default="test")
-    parser.add_argument("--dataset", type=str, default="cifar10")
+    parser.add_argument("--dataset", type=str, default="cifar100")
     parser.add_argument("--mode", type=str, default="CR")
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
@@ -20,22 +20,22 @@ def get_args():
     parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
 
-    parser.add_argument("--surrogate_dataset", type=str, default='')
+    parser.add_argument("--surrogate_dataset", type=str, default='rnd_img')
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--method", type=str, default="DUCK")
+    parser.add_argument("--method", type=str, default="Mahalanobis")
 
     parser.add_argument("--model", type=str, default='resnet18')
-    parser.add_argument("--bsize", type=int, default=256)
+    parser.add_argument("--bsize", type=int, default=1024)
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
-    parser.add_argument("--lr", type=float, default=0.0004)
+    parser.add_argument("--lr", type=float, default=0.0005)
     parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
     parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
-    parser.add_argument("--lambda_2", type=float, default=1.4)
+    parser.add_argument("--lambda_2", type=float, default=5)
 
     options = parser.parse_args()
     return options
@@ -124,13 +124,13 @@ class OPT:
     weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'
     if model== 'resnet18':
         if dataset== 'cifar100':
-            or_model_weights_path = root_folder+'weights/chks_cifar100/Final_CIFAR100_Resnet18.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
    
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'
         
         elif dataset== 'cifar10':
-            or_model_weights_path = root_folder+'weights/chks_cifar10/Final_CIFAR10_Resnet18.pth'
+            or_model_weights_path = root_folder+'weights/chks_cifar10/best_checkpoint_resnet18.pth'
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar10/best_checkpoint_without_{class_to_remove}.pth'
 
