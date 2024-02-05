@@ -363,5 +363,5 @@ def get_surrogate():
         #build the appropriate subset
         subset = torch.utils.data.Subset(set, idx)
 
-    loader_surrogate = DataLoader(subset, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    loader_surrogate = DataLoader(subset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
     return loader_surrogate
