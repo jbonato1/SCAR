@@ -362,7 +362,7 @@ class Mahalanobis(BaseMethod):
                     samples = self.tuckey_transf(ret_embs[labs==i])
                     distribs.append(samples.mean(0))
                     cov = torch.cov(samples.T)
-                    cov_shrinked = self.cov_mat_shrinkage(cov)
+                    cov_shrinked = self.cov_mat_shrinkage(self.cov_mat_shrinkage(cov))
                     cov_shrinked = self.normalize_cov(cov_shrinked)
                     cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
             else:

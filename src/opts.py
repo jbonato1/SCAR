@@ -37,7 +37,6 @@ def get_args():
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
     parser.add_argument("--lambda_2", type=float, default=1.4)
-
     parser.add_argument("--beta", type=float, default=.5)
     parser.add_argument("--gamma1", type=float, default=3)
     parser.add_argument("--gamma2", type=float, default=3)

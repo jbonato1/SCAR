@@ -341,17 +341,16 @@ def get_surrogate(original_model,device):
 
     # download and pre-process CIFAR10
     transform_dset = transforms.Compose(
-        [   #transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+        
+        [   transforms.Resize((64,64),antialias=True) if opt.dataset == 'tinyImagenet' else transforms.Resize((32,32),antialias=True),
+            #transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
             #transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
     )
-    if opt.dataset == 'tinyImagenet':
-        dataset_variant = '_64'
-    else:
-        dataset_variant = '_32'
-    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset+dataset_variant),transform=transform_dset)
+
+    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset+'_split'),transform=transform_dset)
     if opt.surrogate_quantity == -1:
         subset = set
     else:
@@ -378,7 +377,17 @@ def get_surrogate(original_model,device):
     dset = torch.cat(dset)
     labels = torch.cat(labels)
     dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)
-    loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    print('LEN surrogate',dataset_wlogits.__len__())
+    
+    class_sample_count = torch.zeros_like(labels)#np.array([len(np.where(labels == t)[0]) for t in np.unique(labels)])
+    for i in range(opt.num_classes):
+        class_sample_count[labels==i] = len(torch.where(labels==i)[0])
+    class_sample_count[class_sample_count<5]=10
+    #print(torch.Tensor(class_sample_count))
+    weights = 1 / torch.Tensor(class_sample_count)
+    #print(weights)
+    sampler = torch.utils.data.sampler.WeightedRandomSampler(weights,num_samples=dataset_wlogits.__len__(), replacement=True)
+    loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size, num_workers=opt.num_workers,sampler=sampler)
     return loader_surrogate
 
 class custom_Dset_surrogate(Dataset):

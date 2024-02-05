@@ -6,109 +6,68 @@ import random
 from opts import OPT as opt
 
 #Imagenet
-path = '{opt.data_path}data/subset_Imagenet/class_0'
-images = glob.glob(os.path.join(path,'*.JPEG'))
-cnt =0
-random.shuffle(images)
-for img_file in images:
+# path = f'{opt.data_path}/subset_Imagenet/class_0'
+# print(path)
+# images = glob.glob(os.path.join(path,'*.JPEG'))
+# cnt =0
+# random.shuffle(images)
+# for img_file in images:
 
-    img = cv2.imread(img_file)
+#     num=cnt//1000
+#         #create folders
+#     if not os.path.exists(f'{opt.data_path}/subset_Imagenet_split/class_{num}'):
+#         os.makedirs(f'{opt.data_path}/subset_Imagenet_split/class_{num}')
+#     os.system(f'cp {img_file} {opt.data_path}/subset_Imagenet_split/class_{num}')
+        
+#     cnt+=1
 
-    num=cnt//1000
-        #create folders
-    if not os.path.exists(f'{opt.data_path}data/subset_Imagenet_32/class_{num}'):
-        os.makedirs(f'{opt.data_path}data/subset_Imagenet_32/class_{num}')
-    if not os.path.exists(f'{opt.data_path}data/subset_Imagenet_64/class_{num}'):
-        os.makedirs(f'{opt.data_path}data/subset_Imagenet_64/class_{num}')
-    
-    img32 = cv2.resize(img, (36,36))
-    #get filename using os form img_file
+# #check is ok for imagenet
+# print(glob.glob(f'{opt.data_path}/subset_Imagenet_split/*'))
 
-    _,filename = os.path.split(img_file)
-    #centercrop
-    filename32= f'{opt.data_path}data/subset_Imagenet_32/class_{num}/{filename}'
-    cv2.imwrite(filename32,img32[2:34,2:34,:])
+# for folder in glob.glob(f'{opt.data_path}/subset_Imagenet_split/*'):
+#     print(len(glob.glob(folder+'/*')))
 
-    img64 = cv2.resize(img, (64,64))
-    #centercrop
-    filename64= f'{opt.data_path}data/subset_Imagenet_64/class_{num}/{filename}'
-    cv2.imwrite(filename64,img64[4:68,4:68,:])
-    cnt+=1
+# #COCO
+# path = f'{opt.data_path}/COCO_subset/'
+# print(path)
+# images = glob.glob(os.path.join(path,'*.jpg'))
+# cnt =0
+# random.shuffle(images)
+# for img_file in images:
 
-#check is ok for imagenet
-print(glob.glob('{opt.data_path}data/subset_Imagenet_64/*'))
+#     num=cnt//1000
+#         #create folders
+#     if not os.path.exists(f'{opt.data_path}/subset_COCO_split/class_{num}'):
+#         os.makedirs(f'{opt.data_path}/subset_COCO_split/class_{num}')
+#     os.system(f'cp {img_file} {opt.data_path}/subset_COCO_split/class_{num}')
+        
+#     cnt+=1
 
-for folder in glob.glob('{opt.data_path}data/subset_Imagenet_64/*'):
-    print(len(glob.glob(folder+'/*')))
+# #check is ok for imagenet
+# print(glob.glob(f'{opt.data_path}/subset_COCO_split/*'))
 
-#COCO
-path = '{opt.data_path}data/COCO_subset/'
+# for folder in glob.glob(f'{opt.data_path}/subset_COCO_split/*'):
+#     print(len(glob.glob(folder+'/*')))
+
+#rnd_img
+path = f'{opt.data_path}/subset_rnd_img/train/class0/'
+print(path)
 images = glob.glob(os.path.join(path,'*.jpg'))
 cnt =0
 random.shuffle(images)
 for img_file in images:
 
-    img = cv2.imread(img_file)
-
     num=cnt//1000
         #create folders
-    if not os.path.exists(f'{opt.data_path}data/COCO_subset_32/class_{num}'):
-        os.makedirs(f'{opt.data_path}data/COCO_subset_32/class_{num}')
-    if not os.path.exists(f'{opt.data_path}data/COCO_subset_64/class_{num}'):
-        os.makedirs(f'{opt.data_path}data/COCO_subset_64/class_{num}')
-    
-    img32 = cv2.resize(img, (36,36))
-    #get filename using os form img_file
-
-    _,filename = os.path.split(img_file)
-    #centercrop
-    filename32= f'{opt.data_path}data/COCO_subset_32/class_{num}/{filename}'
-    cv2.imwrite(filename32,img32[2:34,2:34,:])
-
-    img64 = cv2.resize(img, (64,64))
-    #centercrop
-    filename64= f'{opt.data_path}data/COCO_subset_64/class_{num}/{filename}'
-    cv2.imwrite(filename64,img64[4:68,4:68,:])
+    if not os.path.exists(f'{opt.data_path}/subset_rnd_img_split/class_{num}'):
+        os.makedirs(f'{opt.data_path}/subset_rnd_img_split/class_{num}')
+    os.system(f'cp {img_file} {opt.data_path}/subset_rnd_img_split/class_{num}')
+        
     cnt+=1
 
 #check is ok for imagenet
-print(glob.glob('{opt.data_path}data/COCO_subset_64/*'))
+print(glob.glob(f'{opt.data_path}/subset_rnd_img_split/*'))
 
-for folder in glob.glob('{opt.data_path}data/COCO_subset_64/*'):
+for folder in glob.glob(f'{opt.data_path}/subset_rnd_img_split/*'):
     print(len(glob.glob(folder+'/*')))
 
-#rdn_img
-path = '{opt.data_path}data/subset_rnd_img/train/class0/'
-images = glob.glob(os.path.join(path,'*.jpg'))
-cnt =0
-random.shuffle(images)
-for img_file in images:
-
-    img = cv2.imread(img_file)
-
-    num=cnt//1000
-        #create folders
-    if not os.path.exists(f'{opt.data_path}data/subset_rnd_img_32/class_{num}'):
-        os.makedirs(f'{opt.data_path}data/subset_rnd_img_32/class_{num}')
-    if not os.path.exists(f'{opt.data_path}data/subset_rnd_img_64/class_{num}'):
-        os.makedirs(f'{opt.data_path}data/subset_rnd_img_64/class_{num}')
-    
-    img32 = cv2.resize(img, (36,36))
-    #get filename using os form img_file
-
-    _,filename = os.path.split(img_file)
-    #centercrop
-    filename32= f'{opt.data_path}data/subset_rnd_img_32/class_{num}/{filename}'
-    cv2.imwrite(filename32,img32[2:34,2:34,:])
-
-    img64 = cv2.resize(img, (64,64))
-    #centercrop
-    filename64= f'{opt.data_path}data/subset_rnd_img_64/class_{num}/{filename}'
-    cv2.imwrite(filename64,img64[4:68,4:68,:])
-    cnt+=1
-
-#check is ok for imagenet
-print(glob.glob('{opt.data_path}data/subset_rnd_img_32/*'))
-
-for folder in glob.glob('{opt.data_path}data/subset_rnd_img_32/*'):
-    print(len(glob.glob(folder+'/*')))
