@@ -397,8 +397,9 @@ class Mahalanobis(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                for n_batch_ret, (img_ret, lab_ret,outputs_original) in enumerate(self.retain_sur):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
+                    outputs_original = outputs_original.to(opt.device)
                     optimizer.zero_grad()
 
                     embs_fgt = bbone(img_fgt)
@@ -421,15 +422,12 @@ class Mahalanobis(BaseMethod):
                     loss_fgt = torch.mean(dists) * opt.lambda_1
 
                     outputs_ret = fc(bbone(img_ret))
-                    with torch.no_grad():
-                        outputs_original = original_model(img_ret)
-                        if opt.mode =='CR':
-                            label_out = torch.argmax(outputs_original,dim=1)
-                            ##### da correggere per multiclass
-                            outputs_original = outputs_original[label_out!=self.class_to_remove[0],:]
-                            
-                            outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
+
                     if opt.mode =='CR':
+                        label_out = lab_ret#torch.argmax(outputs_original,dim=1)
+                        ##### da correggere per multiclass
+                        outputs_original = outputs_original[label_out!=self.class_to_remove[0],:]
+                        outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
                         outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
                     
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2

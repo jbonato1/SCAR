@@ -57,7 +57,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         timestamp1 = time.time()
 
         if opt.method == 'Mahalanobis' and opt.surrogate_dataset!='':
-            train_surrogate_loader = get_surrogate()
+            train_surrogate_loader = get_surrogate(pretr_model,device=opt.device)
  
 
         if opt.mode == "HR":

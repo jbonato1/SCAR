@@ -324,7 +324,7 @@ class SyntDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.imgs)
     
-def get_surrogate():
+def get_surrogate(original_model,device):
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
@@ -341,8 +341,8 @@ def get_surrogate():
 
     # download and pre-process CIFAR10
     transform_dset = transforms.Compose(
-        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
+        [   #transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            #transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
@@ -360,5 +360,40 @@ def get_surrogate():
         #build the appropriate subset
         subset = torch.utils.data.Subset(set, idx)
 
-    loader_surrogate = DataLoader(subset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    loader_surrogate = DataLoader(subset, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
+    
+    #forward pass into the original model 
+    logits = []
+    dset = []
+    labels = []
+    for img,lb in loader_surrogate:
+        with torch.no_grad():
+            output = original_model(img.to(device))
+            logits.append(output.detach().cpu())
+            lb = torch.argmax(output,dim=1).detach().cpu()
+            dset.append(img)
+            labels.append(lb)
+
+    logits = torch.cat(logits)
+    dset = torch.cat(dset)
+    labels = torch.cat(labels)
+    dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)
+    loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
     return loader_surrogate
+
+class custom_Dset_surrogate(Dataset):
+    def __init__(self, dset,labels, logits):
+        self.dset = dset
+        self.labels = labels
+        self.logits = logits
+
+
+    def __len__(self):
+        return self.dset.shape[0]
+
+    def __getitem__(self, index):
+        x = self.dset[index]
+        y = self.labels[index]
+        logit_x = self.logits[index]
+
+        return x, y,logit_x
