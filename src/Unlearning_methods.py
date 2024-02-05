@@ -397,7 +397,7 @@ class Mahalanobis(BaseMethod):
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
+                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
 
