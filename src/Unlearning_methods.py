@@ -392,87 +392,86 @@ class Mahalanobis(BaseMethod):
         criterion = nn.CrossEntropyLoss(label_smoothing=ls)
         
 
-        print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain_sur))
+        #print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain_sur))
         print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
         for _ in tqdm(range(opt.epochs_unlearn)):
-            for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
+            #for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):
-                    img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
-                    optimizer.zero_grad()
-
-                    embs_fgt = bbone(img_fgt)
-
-                    # compute Mahalanobis distance between embeddings and cluster
-                    dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T
-                    #dists = self.pairwise_cos_dist(embs_fgt, distribs)
-
-                    if init:
-                        closest_class = torch.argsort(dists, dim=1)
-                        tmp = closest_class[:, 0]
-                        closest_class = torch.where(tmp == lab_fgt, closest_class[:, 1], tmp)
-                        all_closest_class.append(closest_class)
-                        closest_class = all_closest_class[-1]
-                    else:
-                        closest_class = all_closest_class[n_batch]
-
-
-                    dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
-                    loss_fgt = torch.mean(dists) * opt.lambda_1
-
-                    outputs_ret = fc(bbone(img_ret))
-                    with torch.no_grad():
-                        outputs_original = original_model(img_ret)
-                        if opt.mode =='CR':
-                            label_out = torch.argmax(outputs_original,dim=1)
-                            ##### da correggere per multiclass
-                            outputs_original = outputs_original[label_out!=self.class_to_remove[0],:]
-                            
-                            outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
+            for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):
+                img_ret, lab_ret  = img_ret.to(opt.device), lab_ret.to(opt.device)#,img_fgt.to(opt.device), lab_fgt.to(opt.device)
+                optimizer.zero_grad()
+                outputs = fc(bbone(img_ret))
+                with torch.no_grad():
+                    outputs_original = original_model(img_ret)
                     if opt.mode =='CR':
-                        outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
-                    
-                    loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
-                    loss=loss_ret+loss_fgt
-                    
-                    
-                    if n_batch_ret>opt.batch_fgt_ret_ratio:
-                        del loss,loss_ret,loss_fgt, embs_fgt,dists
-                        break
-                    print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
-                    loss.backward()
-                    optimizer.step()
-                    with torch.no_grad():
-                        self.net.eval()
-                        curr_acc = accuracy(self.net, self.forget)
-                        test_acc=accuracy(self.net, self.test)
-                        ret_acc=accuracy(self.net, self.retain)
-                        #ret_sur = accuracy(self.net, self.retain_sur)
-                        print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc test: {test_acc:.3f}')
-                        self.net.train()
-                        if curr_acc < opt.target_accuracy:
-                            flag_exit = True
+                        label_out = torch.argmax(outputs_original,dim=1)
+                        ##### da correggere per multiclass
+                        outputs_original_ret = outputs_original[label_out!=self.class_to_remove[0],:]
+                        
+                        outputs_original_ret[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original_ret)
+                if opt.mode =='CR':
+                    outputs_ret = outputs[label_out!=self.class_to_remove[0],:]
+                
+                loss_ret = self.distill(outputs_ret, outputs_original_ret)*opt.lambda_2
+                img_fgt = img_ret[label_out==self.class_to_remove[0],:]
+                lab_fgt = label_out[label_out==self.class_to_remove[0]]
+                embs_fgt = bbone(img_fgt)
 
-                    if flag_exit:
-                        break
+                # compute Mahalanobis distance between embeddings and cluster
+                dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T
+                #dists = self.pairwise_cos_dist(embs_fgt, distribs)
+
+                if init:
+                    closest_class = torch.argsort(dists, dim=1)
+                    tmp = closest_class[:, 0]
+                    closest_class = torch.where(tmp == lab_fgt, closest_class[:, 1], tmp)
+                    all_closest_class.append(closest_class)
+                    closest_class = all_closest_class[-1]
+                else:
+                    closest_class = all_closest_class[n_batch_ret]
+
+
+                dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
+                loss_fgt = torch.mean(dists) * opt.lambda_1
+
+                
+                loss=loss_ret+loss_fgt
+                
+                
+                print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
+                loss.backward()
+                optimizer.step()
+                with torch.no_grad():
+                    self.net.eval()
+                    curr_acc = accuracy(self.net, self.forget)
+                    test_acc=accuracy(self.net, self.test)
+                    ret_acc=accuracy(self.net, self.retain)
+                    #ret_sur = accuracy(self.net, self.retain_sur)
+                    print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc test: {test_acc:.3f}')
+                    self.net.train()
+                    if curr_acc < opt.target_accuracy:
+                        flag_exit = True
+
                 if flag_exit:
                     break
-
-            # evaluate accuracy on forget set every batch
-            #this can be removed
-            with torch.no_grad():
-                self.net.eval()
-                curr_acc = accuracy(self.net, self.forget)
-                test_acc=accuracy(self.net, self.test)
-                self.net.train()
-                print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, test is {test_acc:.3f}")
-                if curr_acc < opt.target_accuracy:
-                    flag_exit = True
-
             if flag_exit:
                 break
 
-            init = False
+            # # evaluate accuracy on forget set every batch
+            # #this can be removed
+            # with torch.no_grad():
+            #     self.net.eval()
+            #     curr_acc = accuracy(self.net, self.forget)
+            #     test_acc=accuracy(self.net, self.test)
+            #     self.net.train()
+            #     print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, test is {test_acc:.3f}")
+            #     if curr_acc < opt.target_accuracy:
+            #         flag_exit = True
+
+            # if flag_exit:
+            #     break
+
+            #init = False
             #scheduler.step()
 
 
