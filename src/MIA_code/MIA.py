@@ -182,7 +182,7 @@ def get_membership_attack_data(train_loader, test_loader, model,opt):
     N_tr = X_tr.shape[0]
     N_te = X_te.shape[0]
     #sample from training data N_r samples
-    if N_tr>N_te:
+    if N_tr>=N_te:
         Idx = np.arange(N_tr)
         np.random.shuffle(Idx)
         X_tr = X_tr[Idx[:N_te],:]
