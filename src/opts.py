@@ -20,8 +20,8 @@ def get_args():
     parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
 
-    parser.add_argument("--surrogate_dataset", type=str, default='subset_Imagenet')
-    parser.add_argument("--surrogate_quantity", type=int, default=80,help='-1 for all data,1 for 1k data,2 for 2k data,..., 10 for 10k data')
+    parser.add_argument("--surrogate_dataset", type=str, default='subset_Imagenet_split')
+    parser.add_argument("--surrogate_quantity", type=int, default=-1,help='-1 for all data,1 for 1k data,2 for 2k data,..., 10 for 10k data')
 
     parser.add_argument("--num_workers", type=int, default=4)
 
@@ -32,13 +32,13 @@ def get_args():
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--lr", type=float, default=0.0005)
-    parser.add_argument("--epochs", type=int, default=200, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
+    parser.add_argument("--epochs", type=int, default=25, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
     parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
     parser.add_argument("--temperature", type=float, default=2)
     parser.add_argument("--lambda_1", type=float, default=1)
-    parser.add_argument("--lambda_2", type=float, default=1.4)
+    parser.add_argument("--lambda_2", type=float, default=5)
 
-    parser.add_argument("--beta", type=float, default=.5)
+    parser.add_argument("--beta", type=float, default=0.5)
     parser.add_argument("--gamma1", type=float, default=3)
     parser.add_argument("--gamma2", type=float, default=3)
 
@@ -99,7 +99,7 @@ class OPT:
         batch_fgt_ret_ratio = 1
     elif dataset == 'cifar100':
         num_classes = 100
-        batch_fgt_ret_ratio = 5
+        batch_fgt_ret_ratio = 3
     elif dataset == 'tinyImagenet':
         num_classes = 200
         batch_fgt_ret_ratio = 90

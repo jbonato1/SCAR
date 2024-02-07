@@ -2,7 +2,7 @@ from copy import deepcopy
 from dsets import get_dsets_remove_class, get_dsets, SyntDataset, split_retain_forget,get_surrogate
 import pandas as pd
 from error_propagation import Complex
-from utils import accuracy, set_seed, get_retrained_model,get_trained_model
+from utils import accuracy, set_seed, get_retrained_model,get_trained_model, accuracy_per_class
 from MIA_code.MIA import get_MIA_SVC
 from opts import OPT as opt
 import torch.nn as nn
@@ -53,6 +53,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         pretr_model = deepcopy(original_pretr_model)
         pretr_model.to(opt.device)
         pretr_model.eval()
+        print("accuracy per class on original model:", accuracy_per_class(pretr_model, test_retain_loader, opt.num_classes, class_to_remove))
 
         timestamp1 = time.time()
 
@@ -96,6 +97,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             unlearned_model = approach.run()
 
         unlearned_model.eval()
+        print("accuracy per class after unlearning:", accuracy_per_class(unlearned_model, test_retain_loader, opt.num_classes, class_to_remove))
+
         #save model
         if opt.save_model:
             if opt.mode == "HR":

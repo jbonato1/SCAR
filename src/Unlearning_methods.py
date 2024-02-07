@@ -1,13 +1,13 @@
 import torch
 import torchvision
-from torch import nn 
+from torch import nn
 from torch import optim
 from torch.nn import functional as F
 from opts import OPT as opt
 import pickle
 from tqdm import tqdm
 from torchattacks import PGD
-from utils import accuracy
+from utils import accuracy, accuracy_per_class
 import time
 from copy import deepcopy
 
@@ -35,7 +35,7 @@ class BaseMethod:
         self.target_accuracy = opt.target_accuracy
         self.scheduler = torch.optim.lr_scheduler.MultiStepLR(self.optimizer, milestones=opt.scheduler, gamma=0.5)
         if test is None:
-            pass 
+            pass
         else:
             self.test = test
     def loss_f(self, net, inputs, targets):
@@ -63,7 +63,7 @@ class BaseMethod:
             #print('Accuracy: ',self.evalNet())
         self.net.eval()
         return self.net
-    
+
     def evalNet(self):
         #compute model accuracy on self.loader
 
@@ -101,13 +101,13 @@ class BaseMethod:
             return correct/total,correct2/total2
         else:
             return correct/total,correct2/total2,correct3/total3
-    
+
 class FineTuning(BaseMethod):
     def __init__(self, net, retain, forget,test=None,class_to_remove=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.retain
         self.target_accuracy=0.0
-    
+
     def loss_f(self, inputs, targets,test=None):
         outputs = self.net(inputs)
         loss = self.criterion(outputs, targets)
@@ -134,7 +134,7 @@ class NegativeGradient(BaseMethod):
     def __init__(self, net, retain, forget,test=None):
         super().__init__(net, retain, forget,test=test)
         self.loader = self.forget
-    
+
     def loss_f(self, inputs, targets):
         outputs = self.net(inputs)
         loss = self.criterion(outputs, targets) * (-1)
@@ -166,10 +166,10 @@ class DUCK(BaseMethod):
             fc = self.net.classifier
         else:
             fc = self.net.fc
-        
+
         bbone.eval()
 
- 
+
         # embeddings of retain set
         with torch.no_grad():
             ret_embs=[]
@@ -185,7 +185,7 @@ class DUCK(BaseMethod):
                     break
             ret_embs=torch.cat(ret_embs)
             labs=torch.cat(labs)
-        
+
 
         # compute distribs from embeddings
         distribs=[]
@@ -196,7 +196,7 @@ class DUCK(BaseMethod):
             else:
                 distribs.append(ret_embs[labs==i].mean(0))
         distribs=torch.stack(distribs)
-  
+
 
         bbone.train(), fc.train()
 
@@ -211,14 +211,14 @@ class DUCK(BaseMethod):
         else:
             ls = 0
         criterion = nn.CrossEntropyLoss(label_smoothing=ls)
-        
+
 
         print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain))
         for _ in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
-                    
+
                     optimizer.zero_grad()
 
                     logits_fgt = bbone(img_fgt)
@@ -245,11 +245,11 @@ class DUCK(BaseMethod):
 
                     loss_ret = criterion(outputs_ret/opt.temperature, lab_ret)*opt.lambda_2
                     loss = loss_ret+ loss_fgt
-                    
+
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
                         del loss,loss_ret,loss_fgt, logits_fgt, logits_ret, outputs_ret,dists
                         break
-                    
+
                     loss.backward()
                     optimizer.step()
 
@@ -288,7 +288,7 @@ class Mahalanobis(BaseMethod):
         V2 = (off_diag*mask).sum() / mask.sum()
         cov_mat_shrinked = cov_mat + gamma1*I*V1 + gamma2*(1-I)*V2
         return cov_mat_shrinked
-    
+
     def normalize_cov(self,cov_mat):
         sigma = torch.sqrt(torch.diagonal(cov_mat))  # standard deviations of the variables
         cov_mat = cov_mat/(torch.matmul(sigma.unsqueeze(1),sigma.unsqueeze(0)))
@@ -302,18 +302,20 @@ class Mahalanobis(BaseMethod):
         mahalanobis = torch.diagonal(torch.matmul(right_term, diff.permute(1,2,0)),dim1=1,dim2=2)
         return mahalanobis
 
-    def distill(self, outputs_ret, outputs_original):
+    def distill(self, outputs_ret, outputs_original, w=None, ):
 
         soft_log_old = torch.nn.functional.log_softmax(outputs_original+10e-5, dim=1)
         soft_log_new = torch.nn.functional.log_softmax(outputs_ret+10e-5, dim=1)
-
-        kl_div = torch.nn.functional.kl_div(soft_log_new+10e-5, soft_log_old+10e-5, reduction='batchmean', log_target=True)
-
+        if w is None:
+            kl_div = torch.nn.functional.kl_div(soft_log_new+10e-5, soft_log_old+10e-5, reduction='batchmean', log_target=True)
+        else:
+            kl_div = torch.nn.functional.kl_div(soft_log_new+10e-5, soft_log_old+10e-5, reduction="none", log_target=True)
+            kl_div = torch.mean((w.unsqueeze(1)).to(opt.device)*kl_div)
         return kl_div
 
     def tuckey_transf(self,vectors,beta=opt.beta):
         return torch.pow(vectors,beta)
-    
+
     def pairwise_cos_dist(self, x, y):
         """Compute pairwise cosine distance between two tensors"""
         x_norm = torch.norm(x, dim=1).unsqueeze(1)
@@ -321,7 +323,7 @@ class Mahalanobis(BaseMethod):
         x = x / x_norm
         y = y / y_norm
         return 1 - torch.mm(x, y.transpose(0, 1))
- 
+
     def run(self):
         """compute embeddings"""
         #lambda1 fgt
@@ -334,10 +336,10 @@ class Mahalanobis(BaseMethod):
             fc = self.net.classifier
         else:
             fc = self.net.fc
-        
+
         bbone.eval()
 
- 
+
         # embeddings of retain set
         with torch.no_grad():
             ret_embs=[]
@@ -351,7 +353,7 @@ class Mahalanobis(BaseMethod):
                 cnt+=1
             ret_embs=torch.cat(ret_embs)
             labs=torch.cat(labs)
-        
+
 
         # compute distribs from embeddings
         distribs=[]
@@ -366,7 +368,7 @@ class Mahalanobis(BaseMethod):
                     cov_shrinked = self.normalize_cov(cov_shrinked)
                     cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
             else:
-                
+
                 samples = self.tuckey_transf(ret_embs[labs==i])
                 distribs.append(samples.mean(0))
                 cov = torch.cov(samples.T)
@@ -376,7 +378,24 @@ class Mahalanobis(BaseMethod):
 
         distribs=torch.stack(distribs)
         cov_matrix_inv=torch.stack(cov_matrix_inv)
-        
+
+        #compute weights based on frequensies in self.retain_sur
+        w = torch.ones(opt.num_classes)
+        all_out = []
+        for inputs, targets in self.retain_sur:
+            inputs, targets = inputs.to(opt.device), targets.to(opt.device)
+            outputs = original_model(inputs)
+            outputs = F.softmax(outputs, dim=1)
+            outputs = torch.argmax(outputs, dim=1)
+            all_out.append(outputs.detach().cpu())
+            for o in outputs:
+                w[o]+=1
+        w = w/w.sum()
+        w = (1./w)
+        w.to(opt.device)
+        #batched_w = [w[batch] for batch in all_out]
+
+            
         bbone.train(), fc.train()
 
         optimizer = optim.Adam(self.net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
@@ -390,7 +409,7 @@ class Mahalanobis(BaseMethod):
         else:
             ls = 0
         criterion = nn.CrossEntropyLoss(label_smoothing=ls)
-        
+
 
         print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain_sur))
         print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
@@ -427,15 +446,15 @@ class Mahalanobis(BaseMethod):
                             label_out = torch.argmax(outputs_original,dim=1)
                             ##### da correggere per multiclass
                             outputs_original = outputs_original[label_out!=self.class_to_remove[0],:]
-                            
+                            batched_w = w[(label_out[label_out!=self.class_to_remove[0]]).detach().cpu()]
                             outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
                     if opt.mode =='CR':
                         outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
-                    
+
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
                     loss=loss_ret+loss_fgt
-                    
-                    
+
+
                     if n_batch_ret>opt.batch_fgt_ret_ratio:
                         del loss,loss_ret,loss_fgt, embs_fgt,dists
                         break

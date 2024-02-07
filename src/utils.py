@@ -43,6 +43,21 @@ def accuracy(net, loader):
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
     return correct / total
+def accuracy_per_class(net, loader, num_classes, class_to_remove):
+    """Return accuracy on a dataset given by the data loader."""
+    correct = torch.zeros(num_classes)
+    total = torch.zeros(num_classes)
+    for inputs, targets in loader:
+        inputs, targets = inputs.to(opt.device), targets.to(opt.device)
+        outputs = net(inputs)
+        _, predicted = outputs.max(1)
+        for i in range(num_classes):
+            total[i] += targets.eq(i).sum().item()
+            correct[i] += torch.logical_and(predicted.eq(targets) , targets.eq(i)).sum().item()
+        
+    acc_per_class = correct / total
+    acc_per_class = acc_per_class[[i for i in range(num_classes) if i not in class_to_remove]]
+    return acc_per_class, torch.std(acc_per_class)
 
 
 def compute_losses(net, loader):

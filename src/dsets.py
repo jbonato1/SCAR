@@ -328,21 +328,24 @@ def get_surrogate():
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
+            'subset_Imagenet_split': (0.4914, 0.4822, 0.4465),
             'subset_rnd_img': (0.5969, 0.5444, 0.4877),
             'subset_COCO': (0.485,0.456,0.406)
             }
 
     std = {
             'subset_tiny': (0.229, 0.224, 0.225),
-            'subset_Imagenet': (0.4914, 0.4822, 0.4465),
+            'subset_Imagenet': (0.229, 0.224, 0.225),
+            'subset_Imagenet_split': (0.229, 0.224, 0.225),
             'subset_rnd_img': (0.3366, 0.3260, 0.3411),
             'subset_COCO': (0.229,0.224,0.225)
             }
 
     # download and pre-process CIFAR10
     transform_dset = transforms.Compose(
-        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
+        [   transforms.Resize((32,32)),
+            #transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            #transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
@@ -352,6 +355,7 @@ def get_surrogate():
     else:
         dataset_variant = '_32'
     set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset+dataset_variant),transform=transform_dset)
+    #set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'rnd_img/'),transform=transform_dset)
     if opt.surrogate_quantity == -1:
         subset = set
     else:
