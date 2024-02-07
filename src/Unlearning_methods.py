@@ -329,7 +329,9 @@ class Mahalanobis(BaseMethod):
 
         original_model = deepcopy(self.net) # self.net
         original_model.eval()
-        bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
+        pre = torch.nn.Sequential(*(list(self.net.children())[:4]))
+        pre.eval()
+        bbone = torch.nn.Sequential(*(list(self.net.children())[4:-1] + [nn.Flatten()]))
         if opt.model == 'AllCNN':
             fc = self.net.classifier
         else:
@@ -345,12 +347,25 @@ class Mahalanobis(BaseMethod):
             cnt=0
             for img_ret, lab_ret in self.retain:
                 img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
-                logits_ret = bbone(img_ret)
+                logits_ret = bbone(pre(img_ret))
                 ret_embs.append(logits_ret)
                 labs.append(lab_ret)
                 cnt+=1
             ret_embs=torch.cat(ret_embs)
             labs=torch.cat(labs)
+
+        # with torch.no_grad():
+        #     ret_embs_H=[]
+        #     labs_H=[]
+        #     cnt=0
+        #     for img_ret, lab_ret in self.retain:
+        #         img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
+        #         logits_ret = bbone(pre(img_ret))
+        #         ret_embs_H.append(logits_ret)
+        #         labs_H.append(lab_ret)
+        #         cnt+=1
+        #     ret_embs_H=torch.cat(ret_embs_H)
+        #     labs_H=torch.cat(labs_H)
         
 
         # compute distribs from embeddings
@@ -368,6 +383,10 @@ class Mahalanobis(BaseMethod):
             else:
                 
                 samples = self.tuckey_transf(ret_embs[labs==i])
+
+                #if samples.shape[0]<10:
+                #    samples = torch.concatenate((samples,self.tuckey_transf(ret_embs_H[labs_H==i][:(10-samples.shape[0])])),dim=0) #self.tuckey_transf(ret_embs_H[labs_H==i])
+                #print(samples.shape)
                 distribs.append(samples.mean(0))
                 cov = torch.cov(samples.T)
                 cov_shrinked = self.cov_mat_shrinkage(self.cov_mat_shrinkage(cov))
@@ -377,7 +396,7 @@ class Mahalanobis(BaseMethod):
         distribs=torch.stack(distribs)
         cov_matrix_inv=torch.stack(cov_matrix_inv)
         
-        bbone.train(), fc.train()
+        bbone.train(), fc.train(), pre.train()
 
         optimizer = optim.Adam(self.net.parameters(), lr=opt.lr_unlearn, weight_decay=opt.wd_unlearn)
         scheduler=torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=opt.scheduler, gamma=0.5)
@@ -394,15 +413,16 @@ class Mahalanobis(BaseMethod):
 
         print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain_sur))
         print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
-        for _ in tqdm(range(opt.epochs_unlearn)):
+        for epoch in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
                 for n_batch_ret, (img_ret, lab_ret,outputs_original) in enumerate(self.retain_sur):
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     outputs_original = outputs_original.to(opt.device)
                     optimizer.zero_grad()
-
-                    embs_fgt = bbone(img_fgt)
+                    with torch.no_grad():
+                        A = pre(img_fgt)
+                    embs_fgt = bbone(A)
 
                     # compute Mahalanobis distance between embeddings and cluster
                     dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T
@@ -420,8 +440,9 @@ class Mahalanobis(BaseMethod):
 
                     dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
                     loss_fgt = torch.mean(dists) * opt.lambda_1
-
-                    outputs_ret = fc(bbone(img_ret))
+                    with torch.no_grad():
+                        B = pre(img_ret)
+                    outputs_ret = fc(bbone(B))
 
                     if opt.mode =='CR':
                         label_out = lab_ret#torch.argmax(outputs_original,dim=1)
@@ -431,10 +452,13 @@ class Mahalanobis(BaseMethod):
                         outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
                     
                     loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
-                    loss=loss_ret+loss_fgt
+                    if epoch<2:
+                        loss= loss_ret
+                    else:
+                        loss=loss_ret+loss_fgt
                     
                     
-                    if n_batch_ret>opt.batch_fgt_ret_ratio:
+                    if n_batch_ret>opt.batch_fgt_ret_ratio and epoch>2:
                         del loss,loss_ret,loss_fgt, embs_fgt,dists
                         break
                     print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
@@ -473,6 +497,24 @@ class Mahalanobis(BaseMethod):
             init = False
             #scheduler.step()
 
-
+        
         self.net.eval()
+        print(accuracy_class(self.net,self.test))
+
         return self.net
+
+
+def accuracy_class(net,loader):
+    """Return accuracy on a dataset given by the data loader."""
+    correct = 0
+    total = 0
+    total = torch.zeros((opt.num_classes))
+    correct = torch.zeros((opt.num_classes))
+    for inputs, targets in loader:
+        inputs, targets = inputs.to(opt.device), targets.to(opt.device)
+        outputs = net(inputs)
+        _, predicted = outputs.max(1)
+        for i in range(100):
+            total[i] += targets[targets==i].size(0)
+            correct[i] += predicted[targets==i].eq(targets[targets==i]).sum().item()
+    return correct / total

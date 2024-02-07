@@ -181,20 +181,29 @@ def get_membership_attack_data(train_loader, test_loader, model,opt):
 
     N_tr = X_tr.shape[0]
     N_te = X_te.shape[0]
-
     #sample from training data N_r samples
-    Idx = np.arange(N_tr)
-    np.random.shuffle(Idx)
-    X_tr = X_tr[Idx[:N_te],:]
-    Y_tr = Y_tr[Idx[:N_te]]
-    N_tr = X_tr.shape[0]
+    if N_tr>N_te:
+        Idx = np.arange(N_tr)
+        np.random.shuffle(Idx)
+        X_tr = X_tr[Idx[:N_te],:]
+        Y_tr = Y_tr[Idx[:N_te]]
+        N_tr = X_tr.shape[0]
 
+    else:
+        Idx = np.arange(N_te)
+        np.random.shuffle(Idx)
+        X_te = X_te[Idx[:N_tr],:]
+        Y_te = Y_te[Idx[:N_tr]]
+        N_te = X_te.shape[0]
+
+    print(X_te.shape,X_tr.shape)
     xtrain = torch.cat([X_tr[:int(0.8*N_tr)],X_te[:int(0.8*N_te)]],dim=0)
     ytrain = torch.cat([Y_tr[:int(0.8*N_tr)],Y_te[:int(0.8*N_te)]],dim=0)
 
     xtest = torch.cat([X_tr[int(0.8*N_tr):],X_te[int(0.8*N_te):]],dim=0) 
     ytest = torch.cat([Y_tr[int(0.8*N_tr):],Y_te[int(0.8*N_te):]],dim=0)
 
+    print(f'xtrain: {xtrain.shape}, ytrain: {ytrain.shape}, xtest: {xtest.shape}, ytest: {ytest.shape}')
     # Compute entropy
     entropy = torch.sum(-train_prob*torch.log(torch.clamp(train_prob,min=1e-5)),dim=1)
     train_entropy = torch.mean(entropy).item()

@@ -324,7 +324,31 @@ class SyntDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.imgs)
     
-def get_surrogate(original_model,device):
+import torch.nn as nn    
+from utils_mahalanobis import get_centroids_covMat,mahalanobis_dist
+
+def get_surrogate(retain_loader,original_model,device):
+    
+    bbone = torch.nn.Sequential(*(list(original_model.children())[:-1] + [nn.Flatten()]))
+    fc = original_model.fc
+    bbone.eval()
+    #collect info from retain
+    lab_ret = []
+    features_ret = []
+
+    for num, (img,lab) in enumerate(retain_loader):
+        lab_ret.append(lab)
+        with torch.no_grad():
+            output = bbone(img.to(opt.device))
+            features_ret.append(output.detach().cpu())
+
+    lab_ret = torch.cat(lab_ret)
+    features_ret = torch.cat(features_ret)
+
+    ####################### FILTERING ##########################
+
+    distribs,cov_matrix_inv = get_centroids_covMat(features_ret,lab_ret,num_classes=opt.num_classes)
+
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
@@ -334,7 +358,7 @@ def get_surrogate(original_model,device):
 
     std = {
             'subset_tiny': (0.229, 0.224, 0.225),
-            'subset_Imagenet': (0.4914, 0.4822, 0.4465),
+            'subset_Imagenet': (0.229, 0.224, 0.225),
             'subset_rnd_img': (0.3366, 0.3260, 0.3411),
             'subset_COCO': (0.229,0.224,0.225)
             }
@@ -345,6 +369,8 @@ def get_surrogate(original_model,device):
         [   transforms.Resize((64,64),antialias=True) if opt.dataset == 'tinyImagenet' else transforms.Resize((32,32),antialias=True),
             #transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
             #transforms.RandomHorizontalFlip(),
+            # transforms.Resize(256),
+            # transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
@@ -365,6 +391,7 @@ def get_surrogate(original_model,device):
     logits = []
     dset = []
     labels = []
+    features_sur = []
     for img,lb in loader_surrogate:
         with torch.no_grad():
             output = original_model(img.to(device))
@@ -372,22 +399,43 @@ def get_surrogate(original_model,device):
             lb = torch.argmax(output,dim=1).detach().cpu()
             dset.append(img)
             labels.append(lb)
+            features_sur.append(bbone(img.to(opt.device)).detach().cpu())
 
     logits = torch.cat(logits)
     dset = torch.cat(dset)
     labels = torch.cat(labels)
+    features_sur=torch.cat(features_sur)
+
+    clean_logits = []
+    clean_labels = []
+    clean_dset = []
+
+    # for i in range(100):
+    #     feat_in = features_sur[labels==i].to(opt.device)
+    #     dists = mahalanobis_dist(feat_in,distribs,cov_matrix_inv).T
+    #     buff_distance = dists[:,i]
+    #     thresh = .25#maha_dict[f'class_{i}'][0]+2*maha_dict[f'class_{i}'][1]
+    #     indexes = (buff_distance<=thresh)
+    #     indexes = indexes.detach().cpu()
+    #     clean_logits.append(logits[labels==i][indexes])
+    #     clean_labels.append(labels[labels==i][indexes])
+    #     clean_dset.append(dset[labels==i][indexes])
+
+    # logits = torch.cat(clean_logits)
+    # dset = torch.cat(clean_dset)
+    # labels = torch.cat(clean_labels)
     dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)
     print('LEN surrogate',dataset_wlogits.__len__())
     
     class_sample_count = torch.zeros_like(labels)#np.array([len(np.where(labels == t)[0]) for t in np.unique(labels)])
     for i in range(opt.num_classes):
         class_sample_count[labels==i] = len(torch.where(labels==i)[0])
-    class_sample_count[class_sample_count<5]=10
+    class_sample_count[class_sample_count<3]=5
     #print(torch.Tensor(class_sample_count))
     weights = 1 / torch.Tensor(class_sample_count)
     #print(weights)
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights,num_samples=dataset_wlogits.__len__(), replacement=True)
-    loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size, num_workers=opt.num_workers,sampler=sampler)
+    loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size, num_workers=opt.num_workers,sampler=sampler)#shuffle=True)
     return loader_surrogate
 
 class custom_Dset_surrogate(Dataset):

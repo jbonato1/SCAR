@@ -57,7 +57,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         timestamp1 = time.time()
 
         if opt.method == 'Mahalanobis' and opt.surrogate_dataset!='':
-            train_surrogate_loader = get_surrogate(pretr_model,device=opt.device)
+            train_surrogate_loader = get_surrogate(train_retain_loader,pretr_model,device=opt.device)
  
 
         if opt.mode == "HR":
@@ -78,7 +78,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             elif opt.method=="Mahalanobis":
                 print("METHOD", opt.method)
-                approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
+                approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_retain_loader, class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 
@@ -106,8 +106,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         unlearn_time = time.time() - timestamp1
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
-            #df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
-            df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
+            #df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
 
