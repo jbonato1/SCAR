@@ -394,6 +394,12 @@ class Mahalanobis(BaseMethod):
 
         #print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain_sur))
         print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
+        outputs = []
+        for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):
+            img_ret, lab_ret  = img_ret.to(opt.device), lab_ret.to(opt.device)
+            with torch.no_grad():
+                outputs.append(original_model(img_ret))
+    
         for _ in tqdm(range(opt.epochs_unlearn)):
             #for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
                 #print('new fgt')
@@ -413,6 +419,7 @@ class Mahalanobis(BaseMethod):
                     outputs_ret = outputs[label_out!=self.class_to_remove[0],:]
                 
                 loss_ret = self.distill(outputs_ret, outputs_original_ret)*opt.lambda_2
+                
                 img_fgt = img_ret[label_out==self.class_to_remove[0],:]
                 lab_fgt = label_out[label_out==self.class_to_remove[0]]
                 embs_fgt = bbone(img_fgt)
@@ -433,6 +440,9 @@ class Mahalanobis(BaseMethod):
 
                 dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
                 loss_fgt = torch.mean(dists) * opt.lambda_1
+                #check if loss_fgt is nan
+                if torch.isnan(loss_fgt):
+                    continue
 
                 
                 loss=loss_ret+loss_fgt
@@ -444,10 +454,10 @@ class Mahalanobis(BaseMethod):
                 with torch.no_grad():
                     self.net.eval()
                     curr_acc = accuracy(self.net, self.forget)
-                    test_acc=accuracy(self.net, self.test)
-                    ret_acc=accuracy(self.net, self.retain)
+                    #test_acc=accuracy(self.net, self.test)
+                    #ret_acc=accuracy(self.net, self.retain)
                     #ret_sur = accuracy(self.net, self.retain_sur)
-                    print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc test: {test_acc:.3f}')
+                    #print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc test: {test_acc:.3f}')
                     self.net.train()
                     if curr_acc < opt.target_accuracy:
                         flag_exit = True
@@ -457,21 +467,23 @@ class Mahalanobis(BaseMethod):
             if flag_exit:
                 break
 
-            # # evaluate accuracy on forget set every batch
-            # #this can be removed
-            # with torch.no_grad():
-            #     self.net.eval()
-            #     curr_acc = accuracy(self.net, self.forget)
-            #     test_acc=accuracy(self.net, self.test)
-            #     self.net.train()
-            #     print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, test is {test_acc:.3f}")
-            #     if curr_acc < opt.target_accuracy:
-            #         flag_exit = True
+            # evaluate accuracy on forget set every batch
+            #this can be removed
+            with torch.no_grad():
+                self.net.eval()
+                #curr_acc = accuracy(self.net, self.forget)
+                ret_acc=accuracy(self.net, self.retain)
+
+                test_acc=accuracy(self.net, self.test)
+                self.net.train()
+                print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, ret is {ret_acc:.3f}")
+                if curr_acc < opt.target_accuracy:
+                    flag_exit = True
 
             # if flag_exit:
             #     break
 
-            #init = False
+            init = False
             #scheduler.step()
 
 
