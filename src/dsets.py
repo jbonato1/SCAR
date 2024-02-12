@@ -158,7 +158,7 @@ def get_dsets_remove_class(class_to_remove):
     
     # all train and its subsets
     all_train_loader = DataLoader(train_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
-    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=False, num_workers=opt.num_workers)
     train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
 
@@ -329,20 +329,21 @@ def get_surrogate():
             'subset_tiny': (0.485, 0.456, 0.406),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
             'subset_rnd_img': (0.5969, 0.5444, 0.4877),
-            'subset_COCO': (0.485,0.456,0.406)
+            'subset_COCO': (0.4717,0.4486,0.4089)
             }
 
     std = {
             'subset_tiny': (0.229, 0.224, 0.225),
-            'subset_Imagenet': (0.4914, 0.4822, 0.4465),
+            'subset_Imagenet': (0.229, 0.224, 0.225),
             'subset_rnd_img': (0.3366, 0.3260, 0.3411),
-            'subset_COCO': (0.229,0.224,0.225)
+            'subset_COCO': (0.2754, 0.2708, 0.2852)
             }
 
     # download and pre-process CIFAR10
     transform_dset = transforms.Compose(
-        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
+        [   transforms.Resize((32,32)),
+            #transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            #transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
@@ -351,7 +352,7 @@ def get_surrogate():
         dataset_variant = '_64'
     else:
         dataset_variant = '_32'
-    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset+dataset_variant),transform=transform_dset)
+    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data/',opt.surrogate_dataset+'_split'),transform=transform_dset)
     if opt.surrogate_quantity == -1:
         subset = set
     else:

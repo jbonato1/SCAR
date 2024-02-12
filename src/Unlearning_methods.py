@@ -362,7 +362,8 @@ class Mahalanobis(BaseMethod):
                     samples = self.tuckey_transf(ret_embs[labs==i])
                     distribs.append(samples.mean(0))
                     cov = torch.cov(samples.T)
-                    cov_shrinked = self.cov_mat_shrinkage(cov)
+                    #cov_shrinked = self.cov_mat_shrinkage(cov)
+                    cov_shrinked = self.cov_mat_shrinkage(self.cov_mat_shrinkage(cov))
                     cov_shrinked = self.normalize_cov(cov_shrinked)
                     cov_matrix_inv.append(torch.linalg.pinv(cov_shrinked))
             else:
@@ -406,6 +407,11 @@ class Mahalanobis(BaseMethod):
                     # compute Mahalanobis distance between embeddings and cluster
                     dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T
                     #dists = self.pairwise_cos_dist(embs_fgt, distribs)
+                    embs_fgt_exp = embs_fgt.unsqueeze(1)
+                    distribs_exp = distribs.unsqueeze(0)
+                    #dists=torch.nn.functional.kl_div(torch.nn.functional.log_softmax(embs_fgt_exp+1e-6, dim=2), torch.nn.functional.softmax(distribs_exp+1e-6, dim=2), reduction='none').sum(dim=2)
+                    #dists=torch.mean((embs_fgt_exp-distribs_exp)**2,dim=2)
+                    #dists=torch.norm((embs_fgt_exp-distribs_exp),dim=2)
 
                     if init:
                         closest_class = torch.argsort(dists, dim=1)
@@ -445,10 +451,10 @@ class Mahalanobis(BaseMethod):
                     with torch.no_grad():
                         self.net.eval()
                         curr_acc = accuracy(self.net, self.forget)
-                        test_acc=accuracy(self.net, self.test)
-                        ret_acc=accuracy(self.net, self.retain)
+                        #test_acc=accuracy(self.net, self.test)
+                        #ret_acc=accuracy(self.net, self.retain)
                         #ret_sur = accuracy(self.net, self.retain_sur)
-                        print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc test: {test_acc:.3f}')
+                        #print(f'Acc fgt set: {curr_acc:.3f} Acc ret set: {ret_acc:.3f}, Acc test: {test_acc:.3f}')
                         self.net.train()
                         if curr_acc < opt.target_accuracy:
                             flag_exit = True
