@@ -85,9 +85,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         if opt.load_unlearned_model:
             print("LOADING UNLEARNED MODEL")
             if opt.mode == "HR":
-                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}.pth") 
+                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/models/unlearned_model_{opt.method}_seed_{seed}.pth") 
             elif opt.mode == "CR":
-                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.pth")
+                unlearned_model_dict = torch.load(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k//models/unlearned_model_{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.pth")
 
             unlearned_model = get_trained_model().to(opt.device)
             unlearned_model.load_state_dict(unlearned_model_dict)
@@ -99,9 +99,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         #save model
         if opt.save_model:
             if opt.mode == "HR":
-                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}.pth")
+                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/models/unlearned_model_{opt.method}_seed_{seed}.pth")
             elif opt.mode == "CR":
-                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/models/unlearned_model_{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.pth")
+                torch.save(unlearned_model.state_dict(), f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/models/unlearned_model_{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.pth")
 
         unlearn_time = time.time() - timestamp1
         print("BEGIN SVC FIT")
@@ -155,9 +155,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     if opt.run_unlearn:
         if opt.save_df:
             if opt.mode == "HR":
-                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.method}_seed_{seed}.csv")
+                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/dfs/{opt.method}_seed_{seed}.csv")
             elif opt.mode == "CR":
-                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/dfs/{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.csv")
+                v_unlearn.to_csv(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/dfs/{opt.method}_seed_{seed}_class_{'_'.join(map(str, class_to_remove))}.csv")
     return v_orig, v_unlearn, v_rt
 
 if __name__ == "__main__":
@@ -166,10 +166,12 @@ if __name__ == "__main__":
     df_orig_total=[]
     
     #create output folders
-    if not os.path.exists(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models"):
-        os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models")
-    if not os.path.exists(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs"):
-        os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs")
+    if not os.path.exists(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/models"):
+        #os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/models")
+        os.makedirs(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/models")
+    if not os.path.exists(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/dfs"):
+        #os.makedirs(opt.root_folder+"out/"+opt.mode+"/"+opt.dataset+"/dfs")
+        os.makedirs(f"{opt.root_folder}/out/{opt.mode}/{opt.dataset}/{opt.surrogate_dataset}_{opt.surrogate_quantity}k/dfs")
 
     for i in opt.seed:
         set_seed(i)
