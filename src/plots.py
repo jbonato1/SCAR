@@ -20,7 +20,7 @@ plt.savefig('AUSs_vs_size.png')
 # import pandas as pd
 # outputs = torch.randint(1000)
 # #read from csv
-# o = torch.cat(outputs)
+# o = torch.cat(outputs).to(opt.device)
 # o = torch.argmax(o, dim = 1)
 # idx = torch.zeros(10000)
 # for j in range(10):   

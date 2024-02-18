@@ -78,7 +78,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             elif opt.method=="Mahalanobis":
                 print("METHOD", opt.method)
-                approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
+                approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_fgt_loader, test_retain_loader,class_to_remove=class_to_remove)
             else:
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader)
 

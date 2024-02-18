@@ -352,7 +352,7 @@ def get_surrogate():
     )
     
     #set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset+dataset_variant),transform=transform_dset)
-    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset),transform=transform_dset)
+    set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',opt.surrogate_dataset + "_split"),transform=transform_dset)
     
     
     if opt.surrogate_quantity == -1:

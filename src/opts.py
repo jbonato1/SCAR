@@ -17,7 +17,7 @@ def get_args():
     parser.add_argument("--push_results", action='store_true')#set to true to push results
    
     parser.add_argument("--run_original", action='store_true')
-    parser.add_argument("--run_unlearn", action='store_false')
+    parser.add_argument("--run_unlearn", action='store_true')
     parser.add_argument("--run_rt_model", action='store_true')
 
     parser.add_argument("--surrogate_dataset", type=str, default='subset_COCO_split')

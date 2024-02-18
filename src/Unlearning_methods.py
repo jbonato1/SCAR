@@ -273,11 +273,12 @@ class DUCK(BaseMethod):
         return self.net
 
 class Mahalanobis(BaseMethod):
-    def __init__(self, net, retain, retain_sur, forget,test,class_to_remove=None):
+    def __init__(self, net, retain, retain_sur, forget, test, retain_test, class_to_remove=None):
         super().__init__(net, retain, forget, test)
         self.loader = None
         self.class_to_remove = class_to_remove
         self.retain_sur = retain_sur
+        self.retain_test = retain_test
 
     def cov_mat_shrinkage(self,cov_mat,gamma1=opt.gamma1,gamma2=opt.gamma2):
         I = torch.eye(cov_mat.shape[0]).to(opt.device)
@@ -473,10 +474,12 @@ class Mahalanobis(BaseMethod):
                 self.net.eval()
                 #curr_acc = accuracy(self.net, self.forget)
                 ret_acc=accuracy(self.net, self.retain)
+                retain_test_acc = accuracy(self.net, self.retain_test)
 
-                test_acc=accuracy(self.net, self.test)
+
+                #test_acc=accuracy(self.net, self.test)
                 self.net.train()
-                print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, ret is {ret_acc:.3f}")
+                print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, ret is {ret_acc:.3f}, test retain is {retain_test_acc:.3f}")
                 if curr_acc < opt.target_accuracy:
                     flag_exit = True
 
