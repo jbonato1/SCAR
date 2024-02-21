@@ -95,13 +95,13 @@ class OPT:
     data_path = os.path.expanduser('~/data')
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 1
+        batch_fgt_ret_ratio = 5
     elif dataset == 'cifar100':
         num_classes = 100
         batch_fgt_ret_ratio = 5
     elif dataset == 'tinyImagenet':
         num_classes = 200
-        batch_fgt_ret_ratio = 90
+        batch_fgt_ret_ratio = 5
     elif dataset == 'VGG':
         num_classes = 10
     
@@ -129,7 +129,7 @@ class OPT:
     target_accuracy = 0.01 
     
     #MIA specific
-    iter_MIA = 3 #numo f iterations
+    iter_MIA = 10 #numo f iterations
     verboseMIA = False
 
     weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'

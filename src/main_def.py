@@ -61,7 +61,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
  
 
         if opt.mode == "HR":
-            opt.target_accuracy = accuracy(original_pretr_model, test_loader)
+            opt.target_accuracy = accuracy(original_pretr_model, test_loader)-0.015
             if opt.method == "DUCK":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             elif opt.method=="Mahalanobis":
@@ -184,7 +184,7 @@ if __name__ == "__main__":
                 num=10000
             file_fgt = f'{opt.root_folder}forget_id_files/forget_idx_{num}_{opt.dataset}_seed_{i}.txt'
             train_loader, test_loader, train_fgt_loader, train_retain_loader = get_dsets(file_fgt=file_fgt)
-            opt.RT_model_weights_path=opt.root_folder+f'chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
+            opt.RT_model_weights_path=opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}_seed_{i}.pth'
             print(opt.RT_model_weights_path)
 
             row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_loader=test_loader, seed=i)

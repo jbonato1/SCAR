@@ -43,6 +43,10 @@ def publish(data, range_name):
     if os.path.exists(json_key_file_path):
         credentials = Credentials.from_service_account_file(json_key_file_path, scopes=['https://www.googleapis.com/auth/spreadsheets'])
     #credentials = ServiceAccountCredentials.from_json_keyfile_name(json_key_file_path, scope)
+    else:
+        #raise error file not present Raise 
+        print(f"Error: JSON key file not found at '{json_key_file_path}'")
+        exit(1)
 
     try:
         # Build the Google Sheets API service

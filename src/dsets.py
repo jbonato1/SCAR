@@ -161,7 +161,7 @@ def get_dsets_remove_class(class_to_remove):
     train_fgt_loader = DataLoader(forget_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
     train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
 
-
+    
     return all_train_loader,all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader
 
 
@@ -248,7 +248,7 @@ def get_dsets(file_fgt=None):
     retain_set = Subset(train_set, retain_idx)
 
 
-    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
+    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=False, num_workers=opt.num_workers)
     train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
 
     return train_loader, test_loader, train_forget_loader, train_retain_loader
@@ -332,22 +332,22 @@ def get_surrogate(retain_loader,original_model,device):
     bbone = torch.nn.Sequential(*(list(original_model.children())[:-1] + [nn.Flatten()]))
     fc = original_model.fc
     bbone.eval()
-    #collect info from retain
-    lab_ret = []
-    features_ret = []
+    # #collect info from retain
+    # lab_ret = []
+    # features_ret = []
 
-    for num, (img,lab) in enumerate(retain_loader):
-        lab_ret.append(lab)
-        with torch.no_grad():
-            output = bbone(img.to(opt.device))
-            features_ret.append(output.detach().cpu())
+    # for num, (img,lab) in enumerate(retain_loader):
+    #     lab_ret.append(lab)
+    #     with torch.no_grad():
+    #         output = bbone(img.to(opt.device))
+    #         features_ret.append(output.detach().cpu())
 
-    lab_ret = torch.cat(lab_ret)
-    features_ret = torch.cat(features_ret)
+    # lab_ret = torch.cat(lab_ret)
+    # features_ret = torch.cat(features_ret)
 
-    ####################### FILTERING ##########################
+    # ####################### FILTERING ##########################
 
-    distribs,cov_matrix_inv = get_centroids_covMat(features_ret,lab_ret,num_classes=opt.num_classes)
+    # distribs,cov_matrix_inv = get_centroids_covMat(features_ret,lab_ret,num_classes=opt.num_classes)
 
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),
@@ -367,12 +367,19 @@ def get_surrogate(retain_loader,original_model,device):
     transform_dset = transforms.Compose(
         
         [   transforms.Resize((64,64),antialias=True) if opt.dataset == 'tinyImagenet' else transforms.Resize((32,32),antialias=True),
-            #transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
-            #transforms.RandomHorizontalFlip(),
+            # transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            # transforms.RandomHorizontalFlip(),
             # transforms.Resize(256),
             # transforms.CenterCrop(224),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
+        ]
+    )
+    transform_2 = transforms.Compose(
+        
+        [   
+            transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
         ]
     )
 
@@ -410,39 +417,28 @@ def get_surrogate(retain_loader,original_model,device):
     clean_labels = []
     clean_dset = []
 
-    # for i in range(100):
-    #     feat_in = features_sur[labels==i].to(opt.device)
-    #     dists = mahalanobis_dist(feat_in,distribs,cov_matrix_inv).T
-    #     buff_distance = dists[:,i]
-    #     thresh = .25#maha_dict[f'class_{i}'][0]+2*maha_dict[f'class_{i}'][1]
-    #     indexes = (buff_distance<=thresh)
-    #     indexes = indexes.detach().cpu()
-    #     clean_logits.append(logits[labels==i][indexes])
-    #     clean_labels.append(labels[labels==i][indexes])
-    #     clean_dset.append(dset[labels==i][indexes])
-
-    # logits = torch.cat(clean_logits)
-    # dset = torch.cat(clean_dset)
-    # labels = torch.cat(clean_labels)
-    dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)
+    dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)#,transf=transform_2)
     print('LEN surrogate',dataset_wlogits.__len__())
     
-    class_sample_count = torch.zeros_like(labels)#np.array([len(np.where(labels == t)[0]) for t in np.unique(labels)])
+    class_sample_count = torch.zeros_like(labels)
     for i in range(opt.num_classes):
         class_sample_count[labels==i] = len(torch.where(labels==i)[0])
+    #correct for undersampled output
     class_sample_count[class_sample_count<3]=5
-    #print(torch.Tensor(class_sample_count))
+
     weights = 1 / torch.Tensor(class_sample_count)
-    #print(weights)
+
     sampler = torch.utils.data.sampler.WeightedRandomSampler(weights,num_samples=dataset_wlogits.__len__(), replacement=True)
-    loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size, num_workers=opt.num_workers,sampler=sampler)#shuffle=True)
+    loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size-512, num_workers=opt.num_workers,sampler=sampler)#
+
     return loader_surrogate
 
 class custom_Dset_surrogate(Dataset):
-    def __init__(self, dset,labels, logits):
+    def __init__(self, dset,labels, logits,transf=None):
         self.dset = dset
         self.labels = labels
         self.logits = logits
+        self.transf = transf
 
 
     def __len__(self):
@@ -452,5 +448,6 @@ class custom_Dset_surrogate(Dataset):
         x = self.dset[index]
         y = self.labels[index]
         logit_x = self.logits[index]
-
+        if self.transf:
+            x=self.transf(x)
         return x, y,logit_x

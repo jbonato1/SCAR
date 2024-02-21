@@ -163,7 +163,9 @@ def collect_prob(data_loader, model,opt):
             data, target = batch
             output = model(data)
             prob.append(F.softmax(output, dim=1).data)
-        prob=torch.cat(prob)            
+        prob=torch.cat(prob) 
+    for i in range(prob.shape[0]):
+        prob[i] = torch.roll(prob[i],np.random.randint(0,prob.shape[1]),dims=0)           
     return prob
 
 def get_membership_attack_data(train_loader, test_loader, model,opt):    
@@ -178,6 +180,22 @@ def get_membership_attack_data(train_loader, test_loader, model,opt):
     X_te = test_prob.cpu()
     Y_te = torch.ones(len(test_prob),dtype=torch.int64)
 
+    #print(f'xtrain: {xtrain.shape}, ytrain: {ytrain.shape}, xtest: {xtest.shape}, ytest: {ytest.shape}')
+    # Compute entropy
+    entropy = torch.sum(-train_prob*torch.log(torch.clamp(train_prob,min=1e-5)),dim=1)
+    train_entropy = torch.mean(entropy).item()
+    train_entropy_std = torch.std(entropy).item()
+    print(f"train entropy: {train_entropy} +- {train_entropy_std}")
+
+    entropy2=torch.sum(-test_prob*torch.log(torch.clamp(test_prob,min=1e-5)),dim=1)
+    test_entropy = torch.mean(entropy2).item()
+    test_entropy_std = torch.std(entropy2).item()
+    print(f"test entropy: {test_entropy} +- {test_entropy_std}")
+
+    import matplotlib.pyplot as plt
+    plt.hist(entropy.detach().cpu().numpy(),bins=100)
+    plt.hist(entropy2.detach().cpu().numpy(),bins=100)
+    plt.savefig('entropia_plot.png')
 
     N_tr = X_tr.shape[0]
     N_te = X_te.shape[0]
@@ -203,16 +221,6 @@ def get_membership_attack_data(train_loader, test_loader, model,opt):
     xtest = torch.cat([X_tr[int(0.8*N_tr):],X_te[int(0.8*N_te):]],dim=0) 
     ytest = torch.cat([Y_tr[int(0.8*N_tr):],Y_te[int(0.8*N_te):]],dim=0)
 
-    print(f'xtrain: {xtrain.shape}, ytrain: {ytrain.shape}, xtest: {xtest.shape}, ytest: {ytest.shape}')
-    # Compute entropy
-    entropy = torch.sum(-train_prob*torch.log(torch.clamp(train_prob,min=1e-5)),dim=1)
-    train_entropy = torch.mean(entropy).item()
-    train_entropy_std = torch.std(entropy).item()
-    print(f"train entropy: {train_entropy} +- {train_entropy_std}")
-    entropy=torch.sum(-test_prob*torch.log(torch.clamp(test_prob,min=1e-5)),dim=1)
-    test_entropy = torch.mean(entropy).item()
-    test_entropy_std = torch.std(entropy).item()
-    print(f"test entropy: {test_entropy} +- {test_entropy_std}")
 
     if opt.verboseMIA: 
         print(f'Train and test classification chance, train: {ytrain.sum()/ytrain.shape[0]}, chance test {ytest.sum()/ytest.shape[0]}')
@@ -224,7 +232,7 @@ def get_MIA_SVC(train_loader, test_loader, model, opt):
     for i in range(opt.iter_MIA):
         train_data, train_labels, test_data, test_labels, train_entropy, test_entropy = get_membership_attack_data(train_loader, test_loader, model, opt)
         
-        model_SVC = SVC( tol = 1e-4, max_iter=4000, class_weight='balanced', random_state=i) 
+        model_SVC = SVC( tol = 1e-4, max_iter=1000, class_weight='balanced', random_state=i) 
         accuracy, chance,accuracy_test_ex,accuracy_train_ex, P,R,F1, mutual = training_SVC(model_SVC, train_data, test_data, train_labels, test_labels, opt)
         results.append(np.asarray([accuracy, chance,accuracy_test_ex,accuracy_train_ex,P,R,F1, mutual,train_entropy, test_entropy]))
     
