@@ -10,6 +10,8 @@ import time
 from opts import OPT as opt
 import pandas as pd
 import random
+from error_propagation import Complex
+
 
 
 # If modifying these scopes, delete the file token.json.
@@ -120,8 +122,10 @@ def push_results(args, df_or_model=None, df_un_model=None, df_rt_model=None):
 
     if isinstance(df_un_model, pd.DataFrame):
         keys = df_un_model.keys()
-        means = df_un_model.mean(axis=0)
-        results.extend([means[k] for k in keys if k not in["PLACEHOLDER", "Mutual"]])
+        means = (df_un_model.mean(axis=0)).round(4)
+        stds = (df_un_model.std(axis=0)).round(4)
+
+        results.extend([Complex(means[k], stds[k]) for k in keys if k not in["PLACEHOLDER", "Mutual"]])
     else:
         results.extend([None]*(n_df_params+1))
 
