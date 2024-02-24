@@ -19,7 +19,8 @@ def get_surrogate(surrogate_dataset):
         ]
     )
 
-    train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transforms.ToTensor())
+    #train_set = torchvision.datasets.CIFAR100(root=opt.data_path, train=True, download=True, transform=transforms.ToTensor())
+    train_set = torchvision.datasets.ImageFolder(root=opt.data_path+'/tiny-imagenet-200/train/',transform=transforms.ToTensor())
     set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data',surrogate_dataset+'_split'),transform=transform_dset)
 
 
