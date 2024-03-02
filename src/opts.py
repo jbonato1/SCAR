@@ -135,7 +135,7 @@ class OPT:
     weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'
     if model== 'resnet18':
         if dataset== 'cifar100':
-            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
+            or_model_weights_path = '/home/jb/Documents/trick_distill/src/weights/checkpoint/ckpt_cf100.pth'#root_folder+'weights/chks_cifar100/best_checkpoint_resnet18.pth'
    
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_cifar100/best_checkpoint_without_{class_to_remove}.pth'

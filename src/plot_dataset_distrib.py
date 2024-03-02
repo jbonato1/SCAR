@@ -62,7 +62,7 @@ plt.rcParams['xtick.labelsize'] = 6
 plt.rcParams['ytick.labelsize'] = 6
 
 import scipy
-print(scipy.stats.ks_2samp(img_all[:,0,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy(), img_allSur[:,0,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy()))
+print(scipy.stats.ks_2samp(img_all[:,:,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy(), img_allSur[:,:,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy()))
 print(scipy.stats.ks_2samp(img_all[:,0,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy(), img_allSur1[:,0,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy()))
 print(scipy.stats.ks_2samp(img_all[:,0,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy(), img_allSur2[:,0,:,:].mean(-1).mean(-1).flatten().detach().cpu().numpy()))
 fig, ax = plt.subplots(figsize=(3.5,1.2),ncols=3, nrows=1,sharey=True)
