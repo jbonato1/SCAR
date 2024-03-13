@@ -1,13 +1,10 @@
 from copy import deepcopy
-from dsets import get_dsets_remove_class, get_dsets, SyntDataset, split_retain_forget,get_surrogate
+from dsets import get_dsets_remove_class, get_dsets,get_surrogate
 import pandas as pd
 from error_propagation import Complex
 from utils import accuracy, set_seed, get_retrained_model,get_trained_model
 from MIA_code.MIA import get_MIA_SVC
 from opts import OPT as opt
-import torch.nn as nn
-from tqdm import tqdm
-from gen_adversarial_dset import gen_adv_dataset
 import time
 from Unlearning_methods import choose_method
 from error_propagation import Complex
@@ -57,7 +54,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
         timestamp1 = time.time()
 
-        if opt.method == 'Mahalanobis' and opt.surrogate_dataset!='':
+        if opt.method in ['SCAR', "SCAR_self"] and opt.surrogate_dataset!='':
             train_surrogate_loader = get_surrogate()
  
 
@@ -65,7 +62,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             opt.target_accuracy = accuracy(original_pretr_model, test_loader)
             if opt.method == "DUCK":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
-            elif opt.method=="Mahalanobis":
+            elif opt.method in ['SCAR', "SCAR_self"]:
                 
                 #check
                 approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_loader, class_to_remove=None)
@@ -77,7 +74,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             opt.target_accuracy = 0.01
             if opt.method == "DUCK" or opt.method == "RandomLabels":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
-            elif opt.method=="Mahalanobis":
+            elif opt.method in ['SCAR', "SCAR_self"]:
                 print("METHOD", opt.method)
                 approach=choose_method(opt.method)(pretr_model,train_retain_loader,train_surrogate_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
             else:

@@ -25,7 +25,7 @@ def get_args():
 
     parser.add_argument("--num_workers", type=int, default=4)
 
-    parser.add_argument("--method", type=str, default="Mahalanobis")
+    parser.add_argument("--method", type=str, default="SCAR")
 
     parser.add_argument("--model", type=str, default='resnet18')
     parser.add_argument("--bsize", type=int, default=1024)
@@ -53,9 +53,9 @@ class OPT:
     dataset = args.dataset
     surrogate_dataset = args.surrogate_dataset
     surrogate_quantity = args.surrogate_quantity
-    if surrogate_quantity == 0 and args.method== 'Mahalanobis':
+    if surrogate_quantity == 0 and args.method== 'SCAR':
         #raise error
-        raise Exception("No surrrogate data available for Mahalanobis, please set surrogate quantity>0")
+        raise Exception("No surrrogate data available for SCAR, please set surrogate quantity>0")
 
     mode = args.mode
     if args.mode == 'HR':
@@ -63,7 +63,7 @@ class OPT:
         class_to_remove = None
     else:
         seed = [42]
-        if dataset == 'cifar10' or dataset=="VGG":
+        if dataset == 'cifar10':
             class_to_remove = [[i*1] for i in range(10)]
         elif dataset == 'cifar100':
             class_to_remove = [[i*10] for i in range(10)]
@@ -103,8 +103,7 @@ class OPT:
     elif dataset == 'tinyImagenet':
         num_classes = 200
         batch_fgt_ret_ratio = 90
-    elif dataset == 'VGG':
-        num_classes = 10
+    
     
 
     num_workers = args.num_workers
@@ -151,12 +150,7 @@ class OPT:
             if mode == "CR":
                 RT_model_weights_path = root_folder+f'weights/chks_tinyImagenet/best_checkpoint_without_{class_to_remove}.pth'
             
-        elif dataset== 'VGG':
-            #to fix
-            or_model_weights_path = root_folder+'weights/chks_VGG/best_checkpoint_resnet18.pth'
-            if mode == "CR":
-                RT_model_weights_path = root_folder+f'weights/chks_VGG/best_checkpoint_without_{class_to_remove}.pth'
-    
+     
     elif model == 'resnet50':
         if dataset== 'cifar100':
             or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_resnet50.pth'
@@ -186,7 +180,6 @@ class OPT:
         "cifar10" : [Complex(88.72, 0.28)/100.,Complex(88.64, 0.63)/100.], #[0] HR, [1] CR 
         "cifar100" : [Complex(77.56, 0.29)/100., Complex(77.55, 0.11)/100.],
         "tinyImagenet" : [Complex(68.22, 0.54)/100.,Complex(68.40, 0.07)/100.],
-        "VGG" : [Complex(91.18, 2.92)/100.,Complex(91.18, 2.92)/100.]
 
     }
 
