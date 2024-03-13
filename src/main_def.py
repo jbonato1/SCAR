@@ -28,7 +28,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
     original_pretr_model = get_trained_model()
     original_pretr_model.to(opt.device)
     original_pretr_model.eval()
-
+    opt.class_to_rem_curr = class_to_remove
     if opt.run_original:
         
         
@@ -36,7 +36,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_or_model = get_MIA_SVC(train_fgt_loader, test_loader, original_pretr_model, opt)
             df_or_model["test_accuracy"] = accuracy(original_pretr_model, test_loader)
         elif opt.mode =="CR":
-            df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            # df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_or_model = get_MIA_SVC(train_loader=None, test_loader=None,model=original_pretr_model,opt=opt,fgt_loader=train_fgt_loader,fgt_loader_t=test_fgt_loader)
             df_or_model["forget_test_accuracy"] = accuracy(original_pretr_model, test_fgt_loader)
             df_or_model["retain_test_accuracy"] = accuracy(original_pretr_model, test_retain_loader)
 
@@ -109,7 +110,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             #df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
             df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
-            df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_un_model = get_MIA_SVC(train_loader=None, test_loader=test_loader,model=unlearned_model,opt=opt,fgt_loader=train_fgt_loader,fgt_loader_t=test_fgt_loader)
+            print('F1 mean: ',df_un_model.F1.mean())
+            #df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
 
     
         df_un_model["unlearn_time"] = unlearn_time
@@ -141,7 +144,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
             df_rt_model["test_accuracy"] = accuracy(rt_model, test_loader)
 
         elif opt.mode == "CR":
-            df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            #df_or_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_rt_model = get_MIA_SVC(train_loader=None, test_loader=None,model=rt_model,opt=opt,fgt_loader=train_fgt_loader,fgt_loader_t=test_fgt_loader)
             df_rt_model["forget_test_accuracy"] = accuracy(rt_model, test_fgt_loader)
             df_rt_model["retain_test_accuracy"] = accuracy(rt_model, test_retain_loader)
 
@@ -202,12 +206,12 @@ if __name__ == "__main__":
         elif opt.mode == "CR":
             for class_to_remove in opt.class_to_remove:
                 print(f'------------class {class_to_remove}-----------')
-                all_train_loader, _, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
+                all_train_loader, all_test_loader, train_fgt_loader, train_retain_loader, test_fgt_loader, test_retain_loader = get_dsets_remove_class(class_to_remove)
 
-                opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset if opt.dataset!="tinyImagenet" else "tiny"}/best_checkpoint_without_{class_to_remove}.pth'
+                opt.RT_model_weights_path = opt.root_folder+f'weights/chks_{opt.dataset}/best_checkpoint_without_{class_to_remove[0]}.pth'
                 print(opt.RT_model_weights_path)
-
-                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_remove, train_loader=all_train_loader)
+                
+                row_orig, row_unl, row_ret=main(train_fgt_loader, train_retain_loader, test_fgt_loader=test_fgt_loader, seed=i, test_retain_loader=test_retain_loader, class_to_remove=class_to_remove, train_loader=all_train_loader,test_loader=all_test_loader)
 
                 #print results
                 

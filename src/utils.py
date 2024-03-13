@@ -136,6 +136,7 @@ def download_weights_drive(model_weights_path, weight_file_id, root_folder):
 def get_retrained_model():
 
     local_path = opt.RT_model_weights_path
+    print('check file: ',os.path.exists(local_path),local_path)
     #DOWNLOAD ZIP
     if not os.path.exists(local_path):
         download_weights_drive(opt.root_folder + "models.tar.gz", opt.weight_file_id, opt.root_folder)
