@@ -97,7 +97,7 @@ Configuration Options:
 
 All the hyperparameters are reported in the Supplementary Material of the paper
 
-Example CIFAR 10 in HR scenario
+Example CIFAR 10 in CR scenario
 ```bash
 python3 main_def.py --run_name cifar10_CR --dataset cifar10 --mode CR --cuda 0 --save_model --save_df --run_unlearn  --num_workers 4 --method SCAR --model resnet18 --bsize 1024 --lr 0.0005 --epochs 30  --temperature 1 --lambda_1 1 --lambda_2 5 --delta .5 --gamma1 3 --gamma2 3
 ```
