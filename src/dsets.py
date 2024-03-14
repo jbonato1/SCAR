@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import torch
-from torch.utils.data import DataLoader, Subset, random_split
+from torch.utils.data import DataLoader, Subset, random_split,Dataset
 import torchvision
 from torchvision import transforms
 from opts import OPT as opt
@@ -191,7 +191,7 @@ def get_dsets(file_fgt=None):
     def __len__(self):
         return len(self.imgs)
     
-def get_surrogate():
+def get_surrogate(original_model=None):
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),
             'subset_Imagenet': (0.4914, 0.4822, 0.4465),
@@ -218,10 +218,8 @@ def get_surrogate():
             transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
     )
-    if opt.dataset == 'tinyImagenet':
-        dataset_variant = '_64'
-    else:
-        dataset_variant = '_32'
+
+
     if opt.surrogate_dataset!="subset_gaussian_noise":
         set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data/',opt.surrogate_dataset+'_split'), transform=transform_dset)
         if opt.surrogate_quantity == -1:
@@ -247,4 +245,64 @@ def get_surrogate():
 
 
     loader_surrogate = DataLoader(subset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
+    if opt.mode =='HR':
+        bbone = torch.nn.Sequential(*(list(original_model.children())[:-1] + [nn.Flatten()]))
+        fc = original_model.fc
+        bbone.eval()
+        #forward pass into the original model 
+        logits = []
+        dset = []
+        labels = []
+        features_sur = []
+        for img,lb in loader_surrogate:
+            with torch.no_grad():
+                output = original_model(img.to(opt.device))
+                logits.append(output.detach().cpu())
+                lb = torch.argmax(output,dim=1).detach().cpu()
+                dset.append(img)
+                labels.append(lb)
+                features_sur.append(bbone(img.to(opt.device)).detach().cpu())
+
+        logits = torch.cat(logits)
+        dset = torch.cat(dset)
+        labels = torch.cat(labels)
+        features_sur=torch.cat(features_sur)
+
+        clean_logits = []
+        clean_labels = []
+        clean_dset = []
+
+        dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)#,transf=transform_2)
+        print('LEN surrogate',dataset_wlogits.__len__())
+        
+        class_sample_count = torch.zeros_like(labels)
+        for i in range(opt.num_classes):
+            class_sample_count[labels==i] = len(torch.where(labels==i)[0])
+        #correct for undersampled output
+        class_sample_count[class_sample_count<3]=5
+
+        weights = 1 / torch.Tensor(class_sample_count)
+
+        sampler = torch.utils.data.sampler.WeightedRandomSampler(weights,num_samples=dataset_wlogits.__len__(), replacement=True)
+        loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size-512, num_workers=opt.num_workers,sampler=sampler)#
     return loader_surrogate
+
+
+class custom_Dset_surrogate(Dataset):
+    def __init__(self, dset,labels, logits,transf=None):
+        self.dset = dset
+        self.labels = labels
+        self.logits = logits
+        self.transf = transf
+
+
+    def __len__(self):
+        return self.dset.shape[0]
+
+    def __getitem__(self, index):
+        x = self.dset[index]
+        y = self.labels[index]
+        logit_x = self.logits[index]
+        if self.transf:
+            x=self.transf(x)
+        return x, y,logit_x

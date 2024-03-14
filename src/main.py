@@ -59,7 +59,9 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
  
 
         if opt.mode == "HR":
-            opt.target_accuracy = accuracy(original_pretr_model, test_loader)
+            #tollerance for stopping criteria
+            delta = 0.015 
+            opt.target_accuracy = accuracy(original_pretr_model, test_loader)-delta
             if opt.method == "DUCK":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             elif opt.method in ['SCAR', "SCAR_self"]:
@@ -71,6 +73,7 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
 
 
         elif opt.mode == "CR":
+            #set tollerance for stopping criteria
             opt.target_accuracy = 0.01
             if opt.method == "DUCK" or opt.method == "RandomLabels":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_fgt_loader, class_to_remove=class_to_remove)
@@ -104,8 +107,8 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         unlearn_time = time.time() - timestamp1
         print("BEGIN SVC FIT")
         if opt.mode == "HR":
-            #df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
-            df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
+            df_un_model = get_MIA_SVC(train_fgt_loader, test_loader, unlearned_model, opt)
+            #df_un_model = pd.DataFrame([0],columns=["PLACEHOLDER"])
         elif opt.mode == "CR":
             df_un_model = get_MIA_SVC(train_loader=None, test_loader=test_loader,model=unlearned_model,opt=opt,fgt_loader=train_fgt_loader,fgt_loader_t=test_fgt_loader)
             print('F1 mean: ',df_un_model.F1.mean())

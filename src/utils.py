@@ -32,18 +32,38 @@ def set_seed(seed):
     #torch.backends.cudnn.benchmark = False
 
 
-def accuracy(net, loader):
+def accuracy(net, loader,single_class=False):
     """Return accuracy on a dataset given by the data loader."""
     correct = 0
     total = 0
+
+    total_sc = torch.zeros((opt.num_classes))
+    correct_sc = torch.zeros((opt.num_classes))
+
+    pred_all = []
+    target_all = []
+
     for inputs, targets in loader:
         inputs, targets = inputs.to(opt.device), targets.to(opt.device)
         outputs = net(inputs)
         _, predicted = outputs.max(1)
         total += targets.size(0)
         correct += predicted.eq(targets).sum().item()
-    return correct / total
+        if single_class:
+            pred_all.append(predicted.detach().cpu())
+            target_all.append(targets.detach().cpu())
 
+    if single_class:
+        pred_all = torch.cat(pred_all)
+        target_all = torch.cat(target_all)
+        for i in range(opt.num_classes):
+            buff_tar = target_all[target_all==i]
+            buff_pred = target_all[target_all==i]
+            total_sc[i] = buff_tar.sum().item()
+            correct_sc[i] = (buff_pred == buff_tar).sum().item()
+        return correct / total, correct_sc/total_sc
+    else:
+        return correct / total
 
 def compute_losses(net, loader):
     """Auxiliary function to compute per-sample losses"""
