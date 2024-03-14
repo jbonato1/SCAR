@@ -246,7 +246,7 @@ def get_surrogate(original_model=None):
 
     loader_surrogate = DataLoader(subset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.num_workers)
     if opt.mode =='HR':
-        bbone = torch.nn.Sequential(*(list(original_model.children())[:-1] + [nn.Flatten()]))
+        bbone = torch.nn.Sequential(*(list(original_model.children())[:-1] + [torch.nn.Flatten()]))
         fc = original_model.fc
         bbone.eval()
         #forward pass into the original model 
@@ -272,7 +272,7 @@ def get_surrogate(original_model=None):
         clean_labels = []
         clean_dset = []
 
-        dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)#,transf=transform_2)
+        dataset_wlogits = custom_Dset_surrogate(dset,labels,logits)
         print('LEN surrogate',dataset_wlogits.__len__())
         
         class_sample_count = torch.zeros_like(labels)

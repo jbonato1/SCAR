@@ -239,7 +239,7 @@ class DUCK(BaseMethod):
                     loss_ret = criterion(outputs_ret/opt.temperature, lab_ret)*opt.lambda_2
                     loss = loss_ret+ loss_fgt
                     
-                    if n_batch_ret>opt.batch_fgt_ret_ratio:
+                    if n_batch_ret>opt.num_retain_samp:
                         del loss,loss_ret,loss_fgt, logits_fgt, logits_ret, outputs_ret,dists
                         break
                     
@@ -303,8 +303,8 @@ class SCAR(BaseMethod):
 
         return kl_div
 
-    def tuckey_transf(self,vectors,beta=opt.beta):
-        return torch.pow(vectors,beta)
+    def tuckey_transf(self,vectors,delta=opt.delta):
+        return torch.pow(vectors,delta)
     
     def pairwise_cos_dist(self, x, y):
         """Compute pairwise cosine distance between two tensors"""
@@ -313,6 +313,12 @@ class SCAR(BaseMethod):
         x = x / x_norm
         y = y / y_norm
         return 1 - torch.mm(x, y.transpose(0, 1))
+    
+    def L2(self,embs_fgt,mu_distribs):
+        embs_fgt = embs_fgt.unsqueeze(1)
+        mu_distribs = mu_distribs.unsqueeze(0)
+        dists=torch.norm((embs_fgt-mu_distribs),dim=2)
+        return dists
  
     def run(self):
         """compute embeddings"""
@@ -373,12 +379,26 @@ class SCAR(BaseMethod):
         flag_exit = False
         all_closest_class = []
        
-
+        vec_forg=None
+        if 'tiny' in opt.dataset:
+            th = .4
+            
+        else:
+            th = .8
+            
+        
         print('Num batch forget: ',len(self.forget), 'Num batch retain: ',len(self.retain_sur))
-        print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
-        for _ in tqdm(range(opt.epochs_unlearn)):
+
+        for epoch in tqdm(range(opt.epochs_unlearn)):
             for n_batch, (img_fgt, lab_fgt) in enumerate(self.forget):
-                for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):
+                for n_batch_ret, all_batch in enumerate(self.retain_sur):
+
+                    if opt.mode == 'CR':
+                        img_ret, lab_ret = all_batch
+                    else:
+                        img_ret, lab_ret,outputs_original = all_batch
+                        outputs_original = outputs_original.to(opt.device)
+                    
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
                     embs_fgt = bbone(img_fgt)
@@ -396,32 +416,44 @@ class SCAR(BaseMethod):
                         closest_class = all_closest_class[n_batch]
 
                     dists = dists[torch.arange(dists.shape[0]), closest_class[:dists.shape[0]]]
+
+                    if vec_forg is not None and opt.mode=='HR':
+                        vec_forg[vec_forg<th] = 0
+                        for i in range(opt.num_classes):
+                            dists[lab_fgt==i] = dists[lab_fgt==i]*(vec_forg[i])
+
+
                     loss_fgt = torch.mean(dists) * opt.lambda_1
 
                     outputs_ret = fc(bbone(img_ret))
-                    with torch.no_grad():
-                        outputs_original = original_model(img_ret)
-                        if opt.mode =='CR':
+                    if opt.mode =='CR':
+                        with torch.no_grad():
+                            outputs_original = original_model(img_ret)
                             label_out = torch.argmax(outputs_original,dim=1)
                             outputs_original = outputs_original[label_out!=self.class_to_remove[0],:]
                             outputs_original[:,torch.tensor(self.class_to_remove,dtype=torch.int64)] = torch.min(outputs_original)
-                    if opt.mode =='CR':
+                        
                         outputs_ret = outputs_ret[label_out!=self.class_to_remove[0],:]
                     
-                    loss_ret = self.distill(outputs_ret, outputs_original)*opt.lambda_2
+                    loss_ret = self.distill(outputs_ret, outputs_original/opt.temperature)*opt.lambda_2
                     loss=loss_ret+loss_fgt
                     
-                    if n_batch_ret>opt.batch_fgt_ret_ratio:
+                    if n_batch_ret>opt.num_retain_samp:
                         del loss,loss_ret,loss_fgt, embs_fgt,dists
                         break
+                    
                     print(f'n_batch_ret:{n_batch_ret} ,loss FGT:{loss_fgt}, loss RET:{loss_ret}')
                     loss.backward()
                     optimizer.step()
+
                     with torch.no_grad():
                         self.net.eval()
-                        curr_acc = accuracy(self.net, self.forget)
+                        if opt.mode=='CR':
+                            curr_acc = accuracy(self.net, self.forget)
+                        else:
+                            curr_acc,vec_forg = accuracy(self.net, self.forget,single_class=True)
                         self.net.train()
-                        if curr_acc < opt.target_accuracy:
+                        if curr_acc < opt.target_accuracy and epoch>1:
                             flag_exit = True
 
                     if flag_exit:
@@ -436,7 +468,7 @@ class SCAR(BaseMethod):
                 test_acc=accuracy(self.net, self.test)
                 self.net.train()
                 print(f"AAcc forget: {curr_acc:.3f}, target is {opt.target_accuracy:.3f}, test is {test_acc:.3f}")
-                if curr_acc < opt.target_accuracy:
+                if curr_acc < opt.target_accuracy and epoch>1:
                     flag_exit = True
 
             if flag_exit:
@@ -514,8 +546,7 @@ class SCAR_self(SCAR):
         flag_exit = False
         all_closest_class = []
 
-        print(f'fgt ratio:{opt.batch_fgt_ret_ratio}')
-        
+
         for _ in tqdm(range(opt.epochs_unlearn)):
           
             for n_batch_ret, (img_ret, lab_ret) in enumerate(self.retain_sur):

@@ -55,13 +55,13 @@ def main(train_fgt_loader, train_retain_loader, seed=0, test_loader=None, test_f
         timestamp1 = time.time()
 
         if opt.method in ['SCAR', "SCAR_self"] and opt.surrogate_dataset!='':
-            train_surrogate_loader = get_surrogate()
+            train_surrogate_loader = get_surrogate(original_model=original_pretr_model)
  
 
         if opt.mode == "HR":
             #tollerance for stopping criteria
-            delta = 0.015 
-            opt.target_accuracy = accuracy(original_pretr_model, test_loader)-delta
+            eps = 0.015 
+            opt.target_accuracy = accuracy(original_pretr_model, test_loader)-eps
             if opt.method == "DUCK":
                 approach = choose_method(opt.method)(pretr_model,train_retain_loader, train_fgt_loader,test_loader, class_to_remove=None)
             elif opt.method in ['SCAR', "SCAR_self"]:

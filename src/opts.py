@@ -21,7 +21,7 @@ def get_args():
     parser.add_argument("--run_rt_model", action='store_true')
 
     parser.add_argument("--surrogate_dataset", type=str, default='subset_Imagenet')
-    parser.add_argument("--surrogate_quantity", type=int, default=80,help='-1 for all data,1 for 1k data,2 for 2k data,..., 10 for 10k data')
+    parser.add_argument("--surrogate_quantity", type=int, default=-1,help='-1 for all data,1 for 1k data,2 for 2k data,..., 10 for 10k data')
 
     parser.add_argument("--num_workers", type=int, default=4)
 
@@ -32,13 +32,13 @@ def get_args():
     parser.add_argument("--wd", type=float, default=0.0)
     parser.add_argument("--momentum", type=float, default=0.9)
     parser.add_argument("--lr", type=float, default=0.0005)
-    parser.add_argument("--epochs", type=int, default=25, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
+    parser.add_argument("--epochs", type=int, default=30, help='Num of epochs, for unlearning algorithms it is the max num of epochs') # <------- epochs train
     parser.add_argument("--scheduler", type=int, nargs='+', default=[25,40])
-    parser.add_argument("--temperature", type=float, default=2)
+    parser.add_argument("--temperature", type=float, default=1)
     parser.add_argument("--lambda_1", type=float, default=1)
-    parser.add_argument("--lambda_2", type=float, default=1.4)
+    parser.add_argument("--lambda_2", type=float, default=5)
 
-    parser.add_argument("--beta", type=float, default=.5)
+    parser.add_argument("--delta", type=float, default=.5)
     parser.add_argument("--gamma1", type=float, default=3)
     parser.add_argument("--gamma2", type=float, default=3)
 
@@ -94,21 +94,24 @@ class OPT:
     
     # Data
     data_path = os.path.expanduser('~/data')
+
+    # num_retain_samp sets the percentage of retain or retain surrogate data to use during unlearning
+    # the num of Samples used is bsize*num_retain_samp
     if dataset == 'cifar10':
         num_classes = 10
-        batch_fgt_ret_ratio = 1
+        num_retain_samp = 5#1 for cr
     elif dataset == 'cifar100':
         num_classes = 100
-        batch_fgt_ret_ratio = 3
+        num_retain_samp = 3
     elif dataset == 'tinyImagenet':
         num_classes = 200
-        batch_fgt_ret_ratio = 90
+        num_retain_samp = 90
     
     
 
     num_workers = args.num_workers
 
-    method = args.method#'DUCK' #NegativeGradient, RandomLabels,...
+    method = args.method#' #NegativeGradient, RandomLabels,...
     
     # unlearning params
         
@@ -123,13 +126,13 @@ class OPT:
     #DUCK specific
     lambda_1 = args.lambda_1
     lambda_2 = args.lambda_2
-    beta = args.beta
+    delta = args.delta
     gamma1 = args.gamma1
     gamma2 = args.gamma2
     target_accuracy = 0.01 
     
     #MIA specific
-    iter_MIA = 3 #numo f iterations
+    iter_MIA = 5 #numo f iterations
     verboseMIA = False
 
     weight_file_id = '1tTdpVS3was0RTZszQfLt2tGdixwd3Oy6'

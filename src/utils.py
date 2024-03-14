@@ -58,9 +58,9 @@ def accuracy(net, loader,single_class=False):
         target_all = torch.cat(target_all)
         for i in range(opt.num_classes):
             buff_tar = target_all[target_all==i]
-            buff_pred = target_all[target_all==i]
-            total_sc[i] = buff_tar.sum().item()
-            correct_sc[i] = (buff_pred == buff_tar).sum().item()
+            buff_pred = pred_all[target_all==i]
+            total_sc[i] = buff_tar.shape[0]
+            correct_sc[i] = (buff_pred == i).sum().item()
         return correct / total, correct_sc/total_sc
     else:
         return correct / total
