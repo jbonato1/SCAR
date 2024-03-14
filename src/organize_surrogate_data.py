@@ -5,7 +5,7 @@ import random
 from opts import OPT as opt
 
 #Imagenet
-path = f'{opt.data_path}/subset_Imagenet/class_0'
+path = f'{opt.data_path}/subset_Imagenet/'
 print(path)
 images = glob.glob(os.path.join(path,'*.JPEG'))
 cnt =0
