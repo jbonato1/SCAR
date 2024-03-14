@@ -169,28 +169,12 @@ def get_dsets(file_fgt=None):
     retain_set = Subset(train_set, retain_idx)
 
 
-    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
+    train_forget_loader = DataLoader(forget_set, batch_size=opt.batch_size, drop_last=False, shuffle=False, num_workers=opt.num_workers)
     train_retain_loader = DataLoader(retain_set, batch_size=opt.batch_size, drop_last=False, shuffle=True, num_workers=opt.num_workers)
 
     return train_loader, test_loader, train_forget_loader, train_retain_loader
 
-    def __init__(self, load_synt=False, path=None, pretr_model=None, train_loader=None, save_folder=None,transform=None):
-        self.transform=transform
-        if load_synt:
-            self.imgs=torch.load(os.path.join(path,"synt_imgs.pt"))
-            self.targets=torch.load(os.path.join(path,"synt_labs.pt"))
-        
-    def __getitem__(self, index):
-        img = self.imgs[index].to(opt.device)
-        label = self.targets[index].to(opt.device)
 
-        if self.transform:
-            img = self.transform(img)
-
-        return img, label
-    def __len__(self):
-        return len(self.imgs)
-    
 def get_surrogate(original_model=None):
     mean = {
             'subset_tiny': (0.485, 0.456, 0.406),

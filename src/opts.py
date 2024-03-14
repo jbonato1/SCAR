@@ -102,7 +102,7 @@ class OPT:
         num_retain_samp = 5#1 for cr
     elif dataset == 'cifar100':
         num_classes = 100
-        num_retain_samp = 3
+        num_retain_samp = 5#3 for cr
     elif dataset == 'tinyImagenet':
         num_classes = 200
         num_retain_samp = 90
