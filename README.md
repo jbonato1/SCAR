@@ -1,5 +1,5 @@
 # SCAR: Selective-distillation for Class and Architecture-agnostic unleaRning
-[Jacopo Bonato](https://scholar.google.com/citations?user=tC1GFkUAAAAJ&hl=it&authuser=1),[Marco Cotogni](https://scholar.google.com/citations?user=8PUz5lAAAAAJ&hl=it), [Luigi Sabetta](https://scholar.google.com/citations?view_op=list_works&hl=en&user=rQBQQjMAAAAJ)
+[Jacopo Bonato](https://scholar.google.com/citations?user=tC1GFkUAAAAJ&hl=it&authuser=1), [Marco Cotogni](https://scholar.google.com/citations?user=8PUz5lAAAAAJ&hl=it), [Luigi Sabetta](https://scholar.google.com/citations?view_op=list_works&hl=en&user=rQBQQjMAAAAJ)
 
 
 <!--The paper is available on  [![arxiv](https://img.shields.io/badge/arXiv-red)]()-->
@@ -60,7 +60,9 @@ pip install -r requirements.txt
 
 If you already have trained and retrained model you can skip the above steps.
 
-If you plan to execute the HR scenario,before launching any unlearning method, you have to execute the script sample_fgt_samples.py for generating the indices of the samples to be forgotten.
+If you plan to execute the HR scenario, before launching any unlearning method, you have to execute the script sample_fgt_samples.py for generating the indices of the samples to be forgotten.
+
+If you plan to execute "SCAR" or "SCAR_self", you have to retrieve the surrogate dataset. To do so, sample 10000 images from ImageNet, COCO, or any other dataset and run the script src/organize_surrogate_dataset.py. The script will organize the surrogate dataset in folders each one containing a chunk of the dataset (this is done in order to give the possiblity of select subset of different size). We suggest to use the ImageNet dataset for the surrogate dataset. We provide the list of the images sampled in "surrogate_ImageNet.txt".
 
 For reproducing the experiments:
 ```
@@ -70,7 +72,7 @@ Configuration Options:
  
     --run_name: Name of the run (default: "test").
     --dataset: Dataset for the experiment (default: "cifar100").
-    --mode: Mode for the experiment (default: "CR").
+    --mode: Scenario for the experiment (default: "CR").
     --cuda: Select zero-indexed CUDA device. Use -1 to run on CPU (default: 0).
     --load_unlearned_model: Load a pre-trained unlearned model.
     --save_model: Save the trained model.
@@ -101,3 +103,14 @@ Example CIFAR 10 in CR scenario
 ```bash
 python3 main_def.py --run_name cifar10_CR --dataset cifar10 --mode CR --cuda 0 --save_model --save_df --run_unlearn  --num_workers 4 --method SCAR --model resnet18 --bsize 1024 --lr 0.0005 --epochs 30  --temperature 1 --lambda_1 1 --lambda_2 5 --delta .5 --gamma1 3 --gamma2 3
 ```
+
+
+### Citation
+If you find this work useful, please consider citing it:
+```
+TBD
+```
+
+#### Refs
+This repository is based on:
+- [DUCK](https://github.com/OcraM17/DUCK)
