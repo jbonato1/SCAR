@@ -167,8 +167,8 @@ class OPT:
             or_model_weights_path = root_folder+'weights/chks_tinyImagenet/best_checkpoint_resnet34.pth'
     
     elif model == 'ViT':
-        #raise error not implemented
-        raise NotImplementedError
+        if dataset== 'cifar100':
+            or_model_weights_path = root_folder+'weights/chks_cifar100/best_checkpoint_ViT.pth'
         
     elif model == 'AllCNN':
         if dataset== 'cifar100':

@@ -10,6 +10,7 @@ import torch.nn as nn
 from opts import OPT as opt
 import torchvision
 from models.allcnn import AllCNN
+from model.ViT import ViT_16_mod
 import pickle as pk
 import tqdm
 import torch.nn.functional as F
@@ -204,17 +205,14 @@ def get_resnet_trained():
 
 def get_ViT_trained():
     local_path = opt.or_model_weights_path
+    
+    print(not os.path.exists(local_path),local_path)
+
     if not os.path.exists(local_path):
         download_weights_drive(local_path,opt.weight_file_id,opt.root_folder)
     
     weights_pretrained = torch.load(local_path)
-    if opt.dataset == 'cifar10' or opt.dataset == 'cifar100':
-        image_size=32
-    elif opt.dataset == 'tinyImagenet':
-        image_size = 64
-
-    model = ViT.ViT(image_size=image_size, patch_size=4, num_classes=opt.num_classes, dim=512, depth=8, heads=12, mlp_dim=512, pool = 'cls', channels = 3, dim_head = 128, dropout = 0, emb_dropout = 0)
-
+    model = ViT_16_mod(n_classes=opt.num_classes)
     model.load_state_dict(weights_pretrained)
 
     return model

@@ -322,15 +322,18 @@ class SCAR(BaseMethod):
  
     def run(self):
         """compute embeddings"""
-
+        if opt.model!='ViT':
+            bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
+            if opt.model == 'AllCNN':
+                fc = self.net.classifier
+            else:
+                fc = self.net.fc
+        else:
+            bbone = self.net
+            fc = self.net.heads
+        
         original_model = deepcopy(self.net) # self.net
         original_model.eval()
-        bbone = torch.nn.Sequential(*(list(self.net.children())[:-1] + [nn.Flatten()]))
-        if opt.model == 'AllCNN':
-            fc = self.net.classifier
-        else:
-            fc = self.net.fc
-        
         bbone.eval()
  
         # embeddings of retain set
@@ -340,7 +343,12 @@ class SCAR(BaseMethod):
             cnt=0
             for img_ret, lab_ret in self.retain:
                 img_ret, lab_ret = img_ret.to(opt.device), lab_ret.to(opt.device)
-                logits_ret = bbone(img_ret)
+                
+                if opt.model =='ViT':
+                    logits_ret = bbone.forward_encoder(img_ret)
+                else:
+                    logits_ret = bbone(img_ret)
+
                 ret_embs.append(logits_ret)
                 labs.append(lab_ret)
                 cnt+=1
@@ -401,12 +409,15 @@ class SCAR(BaseMethod):
                     
                     img_ret, lab_ret,img_fgt, lab_fgt  = img_ret.to(opt.device), lab_ret.to(opt.device),img_fgt.to(opt.device), lab_fgt.to(opt.device)
                     optimizer.zero_grad()
-                    embs_fgt = bbone(img_fgt)
+                    if opt.model =='ViT':
+                        embs_fgt = bbone.forward_encoder(img_fgt)
+                    else:
+                        embs_fgt = bbone(img_fgt)
 
                     # compute Mahalanobis distance between embeddings and cluster
                     dists = self.mahalanobis_dist(embs_fgt,lab_fgt,distribs,cov_matrix_inv).T  
 
-                    if init:
+                    if init and n_batch_ret==0:
                         closest_class = torch.argsort(dists, dim=1)
                         tmp = closest_class[:, 0]
                         closest_class = torch.where(tmp == lab_fgt, closest_class[:, 1], tmp)
@@ -424,8 +435,12 @@ class SCAR(BaseMethod):
 
 
                     loss_fgt = torch.mean(dists) * opt.lambda_1
+                    
+                    if opt.model=='ViT':
+                        outputs_ret = fc(bbone.forward_encoder(img_ret))
+                    else:
+                        outputs_ret = fc(bbone(img_ret))
 
-                    outputs_ret = fc(bbone(img_ret))
                     if opt.mode =='CR':
                         with torch.no_grad():
                             outputs_original = original_model(img_ret)

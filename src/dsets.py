@@ -48,20 +48,30 @@ def get_dsets_remove_class(class_to_remove):
             }
 
     # download and pre-process CIFAR10
-    transform_dset = transforms.Compose(
-        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+
+    transform_list = [
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
-    )
 
-    transform_test= transforms.Compose(
-        [
+    transform_list_test = [
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
-    )
+
+    if opt.model =='ViT':
+        transform_list.insert(transforms.RandomCrop(224, padding=28))
+        transform_list.insert(transforms.Resize(224, antialias=True))
+        transform_list_test.insert(transforms.Resize(224, antialias=True))
+    else:
+        transform_list.insert(transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
+
+        
+
+
+    transform_dset = transforms.Compose(transform_list)
+    transform_test= transforms.Compose(transform_list_test)
 
     # we split held out - train
     if opt.dataset == 'cifar10':
@@ -107,20 +117,26 @@ def get_dsets(file_fgt=None):
             'tinyImagenet': (0.229, 0.224, 0.225),
             }
 
-    transform_dset = transforms.Compose(
-        [   transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+    transform_list = [
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
-    )
 
-    transform_test= transforms.Compose(
-        [
+    transform_list_test = [
             transforms.ToTensor(),
             transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
-    )
+
+    if opt.model =='ViT':
+        transform_list.insert(transforms.RandomCrop(224, padding=28))
+        transform_list.insert(transforms.Resize(224, antialias=True))
+        transform_list_test.insert(transforms.Resize(224, antialias=True))
+    else:
+        transform_list.insert(transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
+
+    transform_dset = transforms.Compose(transform_list)
+    transform_test= transforms.Compose(transform_list_test)
     
     if opt.dataset == 'cifar10':
         train_set = torchvision.datasets.CIFAR10(root=opt.data_path, train=True, download=True, transform=transform_test)
@@ -192,20 +208,35 @@ def get_surrogate(original_model=None):
             'subset_gaussian_noise': (1,1,1)
             }
 
-    # download and pre-process CIFAR10
-    transform_dset = transforms.Compose(
-        [   
-            transforms.Resize((64,64)) if opt.dataset == 'tinyImagenet' else transforms.Resize((32,32)),
-            transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4),
+
+
+    transform_list = [
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
         ]
-    )
 
+    transform_list_test = [
+            transforms.ToTensor(),
+            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+        ]
+
+    if opt.model =='ViT':
+        transform_list.insert(transforms.RandomCrop(224, padding=28))
+        transform_list.insert(transforms.Resize(224, antialias=True))
+        transform_list_test.insert(transforms.Resize(224, antialias=True))
+    else:
+        transform_list.insert(transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
+
+        
+    transform_dset = transforms.Compose(transform_list)
+    transform_test= transforms.Compose(transform_list_test)
 
     if opt.surrogate_dataset!="subset_gaussian_noise":
-        set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data/',opt.surrogate_dataset+'_split'), transform=transform_dset)
+        if opt.mode =='CR':
+            set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data/',opt.surrogate_dataset+'_split'), transform=transform_dset)
+        else:    
+            set = torchvision.datasets.ImageFolder(root=os.path.join(opt.data_path,'surrogate_data/',opt.surrogate_dataset+'_split'), transform=transform_test)
         if opt.surrogate_quantity == -1:
             subset = set
         else:
@@ -268,7 +299,7 @@ def get_surrogate(original_model=None):
         weights = 1 / torch.Tensor(class_sample_count)
 
         sampler = torch.utils.data.sampler.WeightedRandomSampler(weights,num_samples=dataset_wlogits.__len__(), replacement=True)
-        loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size-512, num_workers=opt.num_workers,sampler=sampler)#
+        loader_surrogate = DataLoader(dataset_wlogits, batch_size=opt.batch_size, num_workers=opt.num_workers,sampler=sampler)#
     return loader_surrogate
 
 
