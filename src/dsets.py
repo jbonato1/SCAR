@@ -61,11 +61,11 @@ def get_dsets_remove_class(class_to_remove):
         ]
 
     if opt.model =='ViT':
-        transform_list.insert(transforms.RandomCrop(224, padding=28))
-        transform_list.insert(transforms.Resize(224, antialias=True))
-        transform_list_test.insert(transforms.Resize(224, antialias=True))
+        transform_list.insert(0,transforms.RandomCrop(224, padding=28))
+        transform_list.insert(0,transforms.Resize(224, antialias=True))
+        transform_list_test.insert(0,transforms.Resize(224, antialias=True))
     else:
-        transform_list.insert(transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
+        transform_list.insert(0,transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
 
         
 
@@ -129,11 +129,11 @@ def get_dsets(file_fgt=None):
         ]
 
     if opt.model =='ViT':
-        transform_list.insert(transforms.RandomCrop(224, padding=28))
-        transform_list.insert(transforms.Resize(224, antialias=True))
-        transform_list_test.insert(transforms.Resize(224, antialias=True))
+        transform_list.insert(0,transforms.RandomCrop(224, padding=28))
+        transform_list.insert(0,transforms.Resize(224, antialias=True))
+        transform_list_test.insert(0,transforms.Resize(224, antialias=True))
     else:
-        transform_list.insert(transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
+        transform_list.insert(0,transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
 
     transform_dset = transforms.Compose(transform_list)
     transform_test= transforms.Compose(transform_list_test)
@@ -213,20 +213,20 @@ def get_surrogate(original_model=None):
     transform_list = [
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+            transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
 
     transform_list_test = [
             transforms.ToTensor(),
-            transforms.Normalize(mean[opt.dataset],std[opt.dataset]),
+            transforms.Normalize(mean[opt.surrogate_dataset],std[opt.surrogate_dataset]),
         ]
 
     if opt.model =='ViT':
-        transform_list.insert(transforms.RandomCrop(224, padding=28))
-        transform_list.insert(transforms.Resize(224, antialias=True))
-        transform_list_test.insert(transforms.Resize(224, antialias=True))
+        transform_list.insert(0,transforms.RandomCrop(224, padding=28))
+        transform_list.insert(0,transforms.Resize(224, antialias=True))
+        transform_list_test.insert(0,transforms.Resize(224, antialias=True))
     else:
-        transform_list.insert(transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
+        transform_list.insert(0,transforms.RandomCrop(64, padding=8) if opt.dataset == 'tinyImagenet' else transforms.RandomCrop(32, padding=4))
 
         
     transform_dset = transforms.Compose(transform_list)

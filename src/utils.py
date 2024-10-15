@@ -10,7 +10,7 @@ import torch.nn as nn
 from opts import OPT as opt
 import torchvision
 from models.allcnn import AllCNN
-from model.ViT import ViT_16_mod
+from models.ViT import ViT_16_mod
 import pickle as pk
 import tqdm
 import torch.nn.functional as F

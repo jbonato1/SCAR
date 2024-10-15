@@ -6,7 +6,7 @@ from error_propagation import Complex
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--run_name", type=str, default="test")
-    parser.add_argument("--dataset", type=str, default="cifar100")
+    parser.add_argument("--dataset", type=str, default="cifar10")
     parser.add_argument("--mode", type=str, default="CR")
     parser.add_argument("--cuda", type=int, default=0, help="Select zero-indexed cuda device. -1 to use CPU.")
     
